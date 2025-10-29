@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/jobs/send-reminders?token=7af1348d58f0c96742861db96f2993ca", "schedule": "0 16 * * *" }
+  ]
+}

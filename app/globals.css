@@ -1,26 +1,115 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ===== PhysioNext Modern Light Theme ===== */
+:root{
+  --bg:#f9faff;
+  --panel:#ffffff;
+  --line:#dfe3f0;
+  --text:#1b1d28;
+  --muted:#5a6075;
+  --accent:#3b82f6;
+  --accent2:#2563eb;
+  --shadow:0 4px 10px rgba(0,0,0,0.05);
+  --radius:14px;
+  --font:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html, body{
+  margin:0; padding:0;
+  background:linear-gradient(180deg,#f9faff 0%,#edf1f8 100%);
+  color:var(--text);
+  font-family:var(--font);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.px-landing{ max-width:1150px; margin:0 auto; padding:24px; }
+
+/* ÜST MENÜ */
+.px-topbar{
+  display:flex; align-items:center; gap:16px;
+  background:var(--panel);
+  padding:14px 24px; border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  position:sticky; top:12px; z-index:10;
+}
+.px-logo{ font-weight:700; font-size:20px; color:var(--accent2); }
+.px-sub{ font-size:14px; color:var(--muted); }
+.px-brand{ display:flex; flex-direction:column; gap:2px; }
+
+.px-nav{ margin-left:auto; display:flex; gap:24px; font-weight:500; }
+.px-nav a{
+  color:var(--muted); text-decoration:none; transition:.2s color;
+}
+.px-nav a:hover{ color:var(--accent2); }
+
+.px-actions{ margin-left:24px; }
+.px-btn{
+  display:inline-block; padding:10px 18px; border-radius:var(--radius);
+  border:1px solid var(--line); text-decoration:none;
+  font-weight:500; transition:.2s all; cursor:pointer;
+}
+.px-primary{ background:var(--accent); color:#fff; border-color:var(--accent2); }
+.px-btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow); }
+
+/* HERO */
+.px-hero{ text-align:center; padding:90px 10px 60px; }
+.px-hero h1{
+  font-size:44px; line-height:1.2; color:var(--accent2); margin:0 0 14px;
+}
+.px-hero p{
+  color:var(--muted); max-width:700px; margin:0 auto 24px; font-size:18px;
+}
+.px-cta{ display:flex; justify-content:center; gap:14px; }
+
+/* SECTIONS */
+.px-section{ margin:70px 0 40px; }
+.px-section h2{ text-align:center; margin-bottom:24px; color:var(--accent2); }
+
+.px-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:22px;
+}
+.px-card{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow); transition:.2s transform;
+}
+.px-card:hover{ transform:translateY(-3px); }
+.px-card h3{ margin-top:0; color:var(--accent2); }
+.px-card p{ color:var(--muted); line-height:1.5; }
+
+/* HAKKINDA */
+.px-about{
+  display:grid; grid-template-columns:1.3fr .7fr; gap:20px; align-items:start;
+}
+.px-bullets{ margin:0; padding-left:20px; color:var(--muted); }
+
+/* İLETİŞİM */
+.px-contact{
+  display:grid; grid-template-columns:1.1fr .9fr; gap:24px;
+}
+.px-form{ display:grid; gap:14px; }
+.px-form label{ display:grid; gap:6px; font-weight:500; color:var(--text); }
+.px-form input,.px-form textarea{
+  background:#fff; border:1px solid var(--line);
+  border-radius:var(--radius); padding:10px 12px; color:var(--text);
+  box-shadow:var(--shadow);
+}
+.px-form button{ width:max-content; }
+
+.px-map{
+  margin-top:10px; height:180px; border-radius:var(--radius);
+  border:1px dashed var(--line); display:flex; align-items:center; justify-content:center;
+  color:var(--muted);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* FOOTER */
+.px-footer{
+  text-align:center; color:var(--muted);
+  padding:20px 0 10px;
+  font-size:14px;
+}
+
+@media(max-width:840px){
+  .px-about,.px-contact{ grid-template-columns:1fr; }
+}
+@media(max-width:520px){
+  .px-nav{ display:none; }
+  .px-hero h1{ font-size:34px; }
 }
