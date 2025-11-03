@@ -329,6 +329,10 @@ export default function HistoryPage() {
           .hx-title { font-size: 22px; }
           .hx-card { padding: 16px; }
           .hx-datetext { font-size: 17px; }
+          @media (hover:none) and (pointer:coarse) {
+  :global(body){ overflow:hidden; }
+}
+
         }
       `}</style>
     </main>
