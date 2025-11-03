@@ -322,6 +322,10 @@ export default function UpcomingPage() {
           .up-title { font-size: 22px; }
           .up-card { padding: 16px; }
           .up-when { font-size: 17px; }
+          @media (hover:none) and (pointer:coarse) {
+  :global(body){ overflow:hidden; }
+}
+
         }
       `}</style>
     </main>
