@@ -1004,19 +1004,74 @@ body {
   );                            /* biraz daha transparan */
   z-index: -1;
 }
-/* Mobilde sticky başlık ve sekmeler viewport dışına taşmasın */
-@media (hover:none) and (pointer:coarse){
-  .pl-sticky,
-  .topbar,
-  .pl-mobile-tabs{
-    width: 100vw;
-    max-width: 100vw;
-    overflow-x: hidden;
-    box-sizing: border-box;
-  }
+/* ——— Varsayılan (MASAÜSTÜ) ——— */
+.pl-shell {
+  height: 100dvh; min-height: 100dvh;
+  background:#fff; color:#000;
+  font-family: Arial, sans-serif;
+  display:flex; flex-direction:column;
 }
+.pl-sticky {
+  position: sticky; top: 0; z-index: 50;
+  background:#fff; border-bottom:1px solid #eee;
+}
+.pl-content {
+  flex:1; overflow:auto; -webkit-overflow-scrolling:touch;
+  max-width:960px; width:100%; margin:0 auto; padding:16px;
+}
+.pl-welcome {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 12px; border:1px solid #eaeaea; border-radius:10px;
+  margin-bottom:12px; background:#fafafa;
+}
+.pl-welcome-text { font-size:16px; }
+.pl-main { padding:0; }
 
-/* Masaüstü güvenlik: mobil sekmeler asla görünmesin */
-@media (hover:hover) and (pointer:fine){
-  .pl-mobile-tabs{ display: none !important; }
+/* Mobil sekmeler: varsayılan olarak GİZLİ (masaüstü bozulmasın) */
+.pl-mobile-tabs { display:none; background:#fff; }
+
+/* ——— SADECE DOKUNMATİK CİHAZLAR (telefon/tablet) ——— */
+@media (hover: none) and (pointer: coarse) {
+  /* Tek sayfa hissi için tam genişlik ve az padding */
+  .pl-content { max-width:none; padding:12px 12px; }
+
+  /* Yatay kaydırmalı mobil sekmeler AÇIK */
+  .pl-mobile-tabs { display:block; }
+  .pl-tabs-scroll {
+    display:flex; gap:18px; overflow-x:auto; white-space:nowrap;
+    overscroll-behavior-inline:contain; -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin; padding:10px 14px; scroll-snap-type:x proximity;
+    mask-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,1) 20px, rgba(0,0,0,1) calc(100% - 20px), rgba(0,0,0,0));
+  }
+  .pl-tabs-scroll::-webkit-scrollbar { height:6px; }
+  .pl-tabs-scroll::-webkit-scrollbar-thumb { background:#d0d0d0; border-radius:999px; }
+  .pl-tab {
+    text-decoration:none; color:#111; font-weight:600; padding:10px 0;
+    border-bottom:2px solid transparent; scroll-snap-align:start;
+  }
+  .pl-tab.is-active { color:#2563eb; border-bottom-color:#2563eb; }
+
+  /* Hoş geldin kutusu mobil düzen */
+  .pl-welcome {
+    flex-direction:column; align-items:flex-start; gap:6px; padding:10px 12px;
+  }
+  .pl-welcome-text { font-size:15px; line-height:1.35; word-break:break-word; }
+
+  /* booking sayfasındaki eski sol boşlukları sıfırla */
+  .pl-content .px-container { padding-left:0 !important; }
+  .pl-content .px-page { width:100% !important; }
+  .pl-content .px-days-scroll { margin-left:0 !important; }
+
+  /* Çift menü olmasın diye: TopBar içindeki nav’ı SADECE dokunmatikte gizle
+     (TopBar’ın içinde nav/.topbar-nav/.px-nav isimleri varsa kapsar) */
+  .tb-wrap :is(nav, .topbar-nav, .px-nav) { display:none !important; }
+}
+@media (hover:none) and (pointer:coarse) {
+  /* TopBar bileşenindeki nav'ı GLOBAL olarak kapat */
+  :global(.tb-wrap .topbar-nav),
+  :global(.tb-wrap nav) {
+    display: none !important;
+  }
+
+  /* mobil sekmeler (pl-mobile-tabs) açık kalacak */
 }
