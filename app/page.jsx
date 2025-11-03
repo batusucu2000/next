@@ -37,7 +37,7 @@ export default function Home() {
 
           <div className="px-actions">
             <Link href="/register" className="px-btn">Kayıt Ol</Link>
-            <Link href="/login" className="px-btn px-primary">Randevu Al</Link>
+            <Link href="/login" className="px-btn px-primary">Giriş Yap</Link>
           </div>
         </div>
       </header>
