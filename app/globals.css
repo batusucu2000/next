@@ -1066,3 +1066,50 @@ body {
      (TopBar’ın içinde nav/.topbar-nav/.px-nav isimleri varsa kapsar) */
   .tb-wrap :is(nav, .topbar-nav, .px-nav) { display:none !important; }
 }
+/* === PATCH: Mobilde üst bardaki Kayıt Ol / Randevu Al görünür kalsın === */
+
+/* 1) 768px altında butonları göster, biraz küçült */
+@media (max-width: 768px){
+  .px-actions{
+    display:flex;               /* <— saklama */
+    gap:8px;
+    align-items:center;
+  }
+  .px-actions .px-btn{
+    height:40px;
+    padding:0 12px;
+    font-size:13px;
+  }
+}
+
+/* 2) 480px altında “display:none” kuralını ez ve header’da tam genişliği kapatma */
+@media (max-width: 480px){
+  .px-topbar-inner{
+    flex-wrap:wrap;             /* marka + butonlar taşarsa alta geçsin */
+    row-gap:8px;
+  }
+
+  .px-actions{
+    display:flex !important;    /* <— önceki display:none’ı iptal et */
+    gap:8px;
+    margin-left:auto;
+  }
+
+  /* Üst bardaki butonlar dar olsun, tam genişlik olmasın */
+  .px-topbar .px-actions .px-btn{
+    width:auto !important;      /* .px-btn { width:100% } kuralını header’da geçersiz kıl */
+    max-width:none;
+  }
+
+  /* Tam genişlik sadece HERO’daki CTA butonlarına uygulansın */
+  .px-cta .px-btn{
+    width:100%;
+    max-width:280px;
+  }
+}
+
+/* 3) Mobilde menü linklerini gizlemeye devam (çift menüyü önlemek için) */
+@media (max-width: 768px){
+  .px-nav{ display:none; }
+}
+
