@@ -11,8 +11,12 @@ export default function PatientsLayout({ children }) {
   const pathname = usePathname()
   const [name, setName] = useState('')
 
-  // Tüm patients rotalarını edge-left yap (mobilde tam genişlik + tek sayfa)
-  const edgeLeft = true
+  // Hangi sayfalarda "tam sola yapış" modu açılsın?
+  const edgeLeftRoutes = useMemo(
+    () => ['/patients/book', '/patients/upcoming'],
+    []
+  )
+  const edgeLeft = edgeLeftRoutes.some(p => pathname?.startsWith(p))
 
   const nav = useMemo(() => ([
     { href: '/patients/profile',  label: 'Bilgilerimi Güncelle' },
@@ -51,90 +55,72 @@ export default function PatientsLayout({ children }) {
   }, [router])
 
   return (
-    <div className={`pl-shell ${edgeLeft ? 'edge-left' : ''}`}>
-      {/* STICKY HEADER AREA (TopBar + mobil sekmeler) */}
-      <div className="pl-sticky">
-        <TopBar title="Danışan Randevu Sistemi" nav={nav} />
-        {/* Mobilde görünen yatay kaydırmalı sekmeler */}
-        <nav className="pl-mobile-tabs" aria-label="Randevu sekmeleri">
-          <div className="pl-tabs-scroll">
-            {nav.map(item => {
-              const active = pathname?.startsWith(item.href)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? 'page' : undefined}
-                  className={`pl-tab ${active ? 'is-active' : ''}`}
-                >
-                  {item.label}
-                </Link>
-              )
-            })}
-          </div>
-        </nav>
+    <div
+      className={`pl-wrap ${edgeLeft ? 'edge-left' : ''}`}
+      style={{ background:'#fff', color:'#000', minHeight:'100vh', fontFamily:'Arial, sans-serif' }}
+    >
+      <TopBar title="Danışan Randevu Sistemi" nav={nav} />
+
+      {/* Yalnızca mobilde görünen kaydırmalı alt-sekmeler (TopBar'dan bağımsız) */}
+      <div className="pl-mobile-tabs" aria-label="Randevu sekmeleri">
+        <div className="pl-tabs-scroll">
+          {nav.map(item => {
+            const active = pathname?.startsWith(item.href)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`pl-tab ${active ? 'is-active' : ''}`}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
-      {/* SCROLLABLE CONTENT AREA (tek sayfa hissi) */}
+      {/* Normal sayfalarda ortalanmış; edge-left sayfalarda tam genişlik ve sol padding 0 */}
       <div
-        className={`pl-content ${edgeLeft ? 'edge-left' : ''}`}
+        className={`pl-container ${edgeLeft ? 'edge-left' : ''}`}
+        style={
+          edgeLeft
+            ? { maxWidth: 'none', margin: '20px 0', padding: '0 16px 0 0' } // SOL 0
+            : { maxWidth: 960, margin: '24px auto', padding: '0 16px' }
+        }
       >
-        <div className="pl-welcome">
-          <div className="pl-welcome-text">
+        <div className="pl-welcome" style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          padding:'10px 12px', border:'1px solid #eaeaea', borderRadius:10,
+          marginBottom:12, background:'#fafafa'
+        }}>
+          <div className="pl-welcome-text" style={{ fontSize:16 }}>
             Hoş geldin, <b>{name || '...'}</b> 👋
           </div>
         </div>
 
-        <main className="pl-main">
+        {/* Çocuk içerik */}
+        <main className={`pl-main ${edgeLeft ? 'edge-left' : ''}`}>
           {children}
         </main>
       </div>
 
+      {/* Styles */}
       <style>{`
-        /* KABUK: tüm sayfayı kapla ve sadece içerik alanını kaydır */
-        .pl-shell {
-          height: 100dvh;
-          min-height: 100dvh;
-          background:#fff; color:#000;
-          font-family: Arial, sans-serif;
-          display: flex;
-          flex-direction: column;
-        }
+        .pl-wrap { -webkit-overflow-scrolling: touch; }
 
-        /* STICKY üst kısım — TopBar + mobil sekmeler birlikte sabit */
-        .pl-sticky {
-          position: sticky;
-          top: 0;
-          z-index: 50;
-          background: #fff;
-          border-bottom: 1px solid #eee;
-        }
+        /* EDGE-LEFT OVERRIDES */
+        .pl-container.edge-left { padding-left: 0 !important; }
+        .pl-main.edge-left { padding-left: 0 !important; }
+        .pl-container.edge-left .px-container { padding-left: 0 !important; }
+        .pl-container.edge-left .px-page     { width: 100% !important; }
+        .pl-container.edge-left .px-days-scroll { margin-left: 0 !important; }
 
-        /* İÇERİK alanı: tek sayfa hissi için burası scroll alır */
-        .pl-content {
-          flex: 1;
-          overflow: auto;
-          -webkit-overflow-scrolling: touch;
-          max-width: 960px;
-          width: 100%;
-          margin: 0 auto;
-          padding: 16px;
-        }
-        .pl-content.edge-left {
-          max-width: none;     /* mobilde tam genişlik */
-          padding: 12px 12px;  /* kenarlarda az boşluk */
-        }
-
-        .pl-welcome {
-          display:flex; align-items:center; justify-content:space-between;
-          padding:10px 12px; border:1px solid #eaeaea; border-radius:10px;
-          margin-bottom:12px; background:#fafafa;
-        }
-        .pl-welcome-text { font-size:16px; }
-
-        /* Mobil sekmeler (yatay kaydırmalı) */
+        /* ==== MOBİL TABS (yatay kaydırma) ==== */
         .pl-mobile-tabs {
-          display: none;
+          display: none;           /* desktop'ta gizli */
+          border-top: 1px solid #eee;
+          border-bottom: 1px solid #eee;
           background: #fff;
         }
         .pl-tabs-scroll {
@@ -156,7 +142,7 @@ export default function PatientsLayout({ children }) {
           text-decoration: none;
           color: #111;
           font-weight: 600;
-          padding: 10px 0;
+          padding: 8px 0;
           border-bottom: 2px solid transparent;
           scroll-snap-align: start;
         }
@@ -165,27 +151,29 @@ export default function PatientsLayout({ children }) {
           border-bottom-color: #2563eb;
         }
 
-        /* Çocuk ana içerik */
-        .pl-main { padding: 0; }
-
-        /* Mobil davranışlar */
-        @media (max-width: 767px) {
-          .pl-mobile-tabs { display: block; }         /* sadece mobilde göster */
-          .pl-welcome {
-            flex-direction: column; align-items: flex-start;
-            gap: 6px; padding: 10px 12px;
+        /* ====== Responsive ====== */
+        @media (max-width: 479px) {
+          .pl-mobile-tabs { display: block; } /* mobilde göster */
+          .pl-container:not(.edge-left) {
+            margin: 16px auto;
+            padding: 0 12px;
           }
-          .pl-welcome-text { font-size: 15px; line-height: 1.35; word-break: break-word; }
-
-          /* booking sayfandaki eski sol boşlukları sıfırla */
-          .pl-content.edge-left .px-container { padding-left: 0 !important; }
-          .pl-content.edge-left .px-page { width: 100% !important; }
-          .pl-content.edge-left .px-days-scroll { margin-left: 0 !important; }
+          .pl-welcome {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 10px 12px;
+          }
+          .pl-welcome-text {
+            font-size: 15px;
+            line-height: 1.35;
+            word-break: break-word;
+          }
+          .pl-container.edge-left { padding-right: 10px; }
         }
 
-        /* Tablet/desktop genişlikte ortalı kutu görünümü kalsın */
-        @media (min-width: 768px) {
-          .pl-content { max-width: 960px; }
+        @media (min-width: 480px) and (max-width: 767px) {
+          .pl-container:not(.edge-left) { padding: 0 14px; }
         }
       `}</style>
     </div>
