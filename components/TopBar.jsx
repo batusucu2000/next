@@ -17,19 +17,23 @@ export default function TopBar({ title = 'Hasta Randevu Sistemi', nav = [] }) {
     pathname === href ? { borderBottom: '2px solid #007b55' } : {}
 
   return (
-    <header style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '12px 32px',
-      borderBottom: '1px solid #ccc',
-      background: '#fff',
-      color: '#000',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <div style={{ fontSize: 20, fontWeight: 'bold' }}>{title}</div>
+    <header
+      className="topbar"
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 16px',
+        borderBottom: '1px solid #ccc',
+        background: '#fff',
+        color: '#000',
+        fontFamily: 'Arial, sans-serif'
+      }}
+    >
+      <div style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</div>
 
-      <nav style={{ display: 'flex', gap: 20, fontSize: 15 }}>
+      {/* BURASI ÖNEMLİ: className="topbar-nav" */}
+      <nav className="topbar-nav" style={{ display: 'flex', gap: 16, fontSize: 14 }}>
         {nav.map(item => (
           <Link
             key={item.href}
@@ -47,7 +51,7 @@ export default function TopBar({ title = 'Hasta Randevu Sistemi', nav = [] }) {
           backgroundColor: '#e74c3c',
           color: 'white',
           border: 'none',
-          padding: '8px 16px',
+          padding: '8px 12px',
           borderRadius: 6,
           cursor: 'pointer',
           fontFamily: 'inherit'
@@ -55,6 +59,13 @@ export default function TopBar({ title = 'Hasta Randevu Sistemi', nav = [] }) {
       >
         Çıkış Yap
       </button>
+
+      {/* Mobilde TopBar NAV'INI GİZLE */}
+      <style jsx>{`
+        @media (hover: none) and (pointer: coarse) {
+          .topbar-nav { display: none !important; }
+        }
+      `}</style>
     </header>
   )
 }
