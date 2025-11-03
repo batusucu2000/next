@@ -20,8 +20,19 @@ const trDate = (yyyyMMdd) => {
   return `${day} ${month} ${year} ${weekday}`
 }
 
-// 09:00–20:00 (12 slot)
-const HOURS = Array.from({ length: 12 }, (_, i) => `${pad(9 + i)}:00`)
+// 09:00–20:00 (Hafta içi & Pazar hariç varsayılan), Cumartesi 09:00–17:00
+const hoursFor = (yyyyMMdd) => {
+  const d = new Date(yyyyMMdd + 'T00:00:00')
+  const dow = d.getDay() // 0: Pazar, 6: Cumartesi
+  if (dow === 6) {
+    const start = 9, end = 16
+    const len = end - start + 1
+    return Array.from({ length: len }, (_, i) => `${pad(start + i)}:00`)
+  }
+  const start = 9, end = 20
+  const len = end - start + 1
+  return Array.from({ length: len }, (_, i) => `${pad(start + i)}:00`)
+}
 
 // Yerel “şimdi”
 const nowTR = () => new Date()
@@ -31,7 +42,7 @@ const isWithinLast12h = (yyyyMMdd, hhmm) => {
   try {
     const [y,m,d] = yyyyMMdd.split('-').map(Number)
     const [H,Min] = hhmm.split(':').map(Number)
-    const slot = new Date(y,(m||1)-1,d||1,H||0,Min||0,0,0)
+    const slot = new Date(y,(m||1)-1,d||1,H||0,Min||0,0)
     const now  = nowTR()
     const diffH = (slot.getTime() - now.getTime()) / (1000*60*60)
     return diffH <= 12
@@ -45,25 +56,26 @@ export default function BookPage() {
   const days = useMemo(() => Array.from({ length: 15 }, (_, i) => fmtDate(addDays(today, i))), [today])
 
   const [loading, setLoading] = useState(true)
-  const [msg, setMsg] = useState('')
-  const [err, setErr] = useState('')
   const [credits, setCredits] = useState(0)
 
   // { [date]: Slot[] }, reserved: pending/approved/booked dolular
   const [slotsByDate, setSlotsByDate] = useState({})
   const [reserved, setReserved] = useState(new Set())
 
+  // Toast + spinner
+  const [notice, setNotice] = useState({ type: '', text: '' }) // 'info' | 'success' | 'error'
+  const [busy, setBusy] = useState(false)
+
   // Mesaj zamanlayıcı
-  const MESSAGE_TTL_MS = 9000
+  const MESSAGE_TTL_MS = 5000
   const msgTimerRef = useRef(null)
   const clearMsgTimer = () => { if (msgTimerRef.current) clearTimeout(msgTimerRef.current) }
-  const autoHideMsg = () => {
+  const showToast = useCallback((type, text, ttl = MESSAGE_TTL_MS) => {
+    setNotice({ type, text })
     clearMsgTimer()
-    msgTimerRef.current = setTimeout(() => setMsg(''), MESSAGE_TTL_MS)
-  }
-  const showMsg = (text) => { setMsg(text); autoHideMsg() }
-  const showErr = (text) => { setErr(text); /* istersen hata için de auto-hide ekleyebilirsin */ }
-
+    msgTimerRef.current = setTimeout(() => setNotice({ type:'', text:'' }), ttl)
+  }, [])
+  const closeToast = () => { clearMsgTimer(); setNotice({ type:'', text:'' }) }
   useEffect(() => () => clearMsgTimer(), [])
 
   // Tek slot dolu mu? — RPC ile kontrol (RLS güvenli)
@@ -75,7 +87,7 @@ export default function BookPage() {
 
   const loadRange = useCallback(async (start, end) => {
     try {
-      setLoading(true); setErr(''); /* msg'i silmiyoruz; üstte dursun */
+      setLoading(true)
 
       // Kullanıcı + kredi
       const { data: { user } } = await supabase.auth.getUser()
@@ -116,11 +128,11 @@ export default function BookPage() {
         setReserved(new Set())
       }
     } catch (e) {
-      showErr(e.message || String(e))
+      showToast('error', e.message || String(e))
     } finally {
       setLoading(false)
     }
-  }, [router])
+  }, [router, showToast])
 
   useEffect(() => {
     ;(async () => {
@@ -142,10 +154,7 @@ export default function BookPage() {
         loadRange(days[0], days[days.length-1])
       })
       .subscribe()
-    return () => {
-      supabase.removeChannel(ch1)
-      supabase.removeChannel(ch2)
-    }
+    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2) }
   }, [days, loadRange])
 
   // Durum: 'closed' | 'reserved' | 'free' + 12saat kuralı
@@ -163,122 +172,105 @@ export default function BookPage() {
     try {
       const list = slotsByDate[date] || []
       const slot = list.find(s => s.time === hhmm)
-      if (!slot) { showErr('Bu saat kapalı.'); return }
+      if (!slot) { showToast('error', 'Bu saat kapalı.'); return }
 
-      // Uyarı / onay
       const note =
         'NOT: Derse geç kalınması durumunda gecikme süresi ders süresinden düşer.\n\n' +
         `${trDate(date)} ${hhmm} saatine randevu oluşturmak istediğinize emin misiniz?`
       if (!window.confirm(note)) return
 
-      showMsg(`${trDate(date)} ${hhmm} için randevu oluşturuluyor…`)
+      setBusy(true)
+      showToast('info', `${trDate(date)} ${hhmm} için randevu oluşturuluyor…`, 7000)
 
-      // Sunucu tarafı tüm kuralları kontrol eder + krediyi düşer
       const { data, error } = await supabase.rpc('book_slot', { p_slot_id: slot.id })
 
-      // 1) Başarılı
       if (data?.ok) {
-        showMsg('Randevunuz oluşturuldu ✅')
+        setBusy(false)
+        showToast('success', 'Randevunuz oluşturuldu ✅')
         await loadRange(days[0], days[days.length-1])
         return
       }
 
-      // 2) Hata varsa “gerçekten dolu mu?” kontrol et; doluysa başarı say
       if (error) {
         const reallyBooked = await isSlotBooked(slot.id)
+        setBusy(false)
         if (reallyBooked) {
-          showMsg('Randevunuz oluşturuldu ✅')
+          showToast('success', 'Randevunuz oluşturuldu ✅')
           await loadRange(days[0], days[days.length-1])
           return
         }
-        showErr(error.message || 'Randevu alınamadı')
+        showToast('error', error.message || 'Randevu alınamadı')
         return
       }
 
-      // 3) Ne ok ne error — veride mesaj varsa göster
-      showErr(data?.message || 'Randevu alınamadı')
+      setBusy(false)
+      showToast('error', data?.message || 'Randevu alınamadı')
     } catch (e) {
-      showErr(e.message || String(e))
+      setBusy(false)
+      showToast('error', e.message || String(e))
     }
   }
 
   if (loading) return <main style={{ padding: 16 }}>Yükleniyor…</main>
 
   return (
-    <div style={pageStyle}>
-      <header style={headerStyle}>
-        <div style={brandStyle}>Hasta Randevu Sistemi</div>
-        <div style={{ fontWeight: 700 }}>Kalan kredi: <span style={{ color:'#007b55' }}>{credits}</span></div>
+    <div className="px-page">
+      <header className="px-header">
+        <div className="px-credits">Kalan kredi: <span>{credits}</span></div>
       </header>
 
-      <main style={container}>
-        <h1 style={h1Style}>Randevu Al (Önümüzdeki 15 gün)</h1>
+      <main className="px-container">
+        {/* Toast Stack */}
+        <div className="px-toast-wrap" aria-live={notice.type === 'error' ? 'assertive' : 'polite'} aria-atomic="true">
+          {notice.text && (
+            <div className={`px-toast px-toast-${notice.type}`}>
+              <div className="px-toast-icon">
+                {notice.type === 'success' && '✅'}
+                {notice.type === 'error' && '⛔'}
+                {notice.type === 'info' && (<span className={`px-spinner ${busy ? 'spin' : ''}`} aria-hidden="true"></span>)}
+              </div>
+              <div className="px-toast-text">{notice.text}</div>
+              <button className="px-toast-close" onClick={closeToast} aria-label="Kapat">×</button>
+            </div>
+          )}
+        </div>
 
-        {/* ---- Mesajlar: TABLONUN ÜSTÜNDE ---- */}
-        {msg && (
-          <div style={{
-            position:'relative', color:'#0a7', background:'#e9fbf6',
-            border:'1px solid #b8efe3', padding:'10px 36px 10px 12px',
-            borderRadius:8, margin:'6px 0 10px 0'
-          }}>
-            {msg}
-            <button
-              onClick={()=>setMsg('')}
-              title="Kapat"
-              style={{ position:'absolute', right:8, top:6, border:'none', background:'transparent', cursor:'pointer', fontSize:18, lineHeight:1 }}
-            >×</button>
-          </div>
-        )}
-        {err && (
-          <div style={{
-            position:'relative', color:'crimson', background:'#ffeaea',
-            border:'1px solid #ffcccc', padding:'10px 36px 10px 12px',
-            borderRadius:8, margin:'6px 0 10px 0'
-          }}>
-            Hata: {err}
-            <button
-              onClick={()=>setErr('')}
-              title="Kapat"
-              style={{ position:'absolute', right:8, top:6, border:'none', background:'transparent', cursor:'pointer', fontSize:18, lineHeight:1 }}
-            >×</button>
-          </div>
-        )}
-        {/* ------------------------------------ */}
-
-        <div style={legendRow}>
+        <div className="px-legend-row">
           <Legend color="#2e7d32" label="Müsait" />
           <Legend color="#c62828" label="Dolu" />
           <Legend color="#9e9e9e" label="Kapalı" />
         </div>
 
-        <p style={{ fontSize:13, color:'#555', marginTop:6 }}>
+        <p className="px-rules">
           Kurallar: Aynı güne 1 ders, aynı haftaya en fazla 3 ders. Randevular hafta içi 09:00–20:00 arasında,
           derse 12 saat kala yeni randevu alınamaz. En fazla 15 gün sonrasına rezervasyon yapılabilir.
           İptal ≥24 saat kala → kredi iade; &lt;24 saat kala → iade yok.
         </p>
 
         {/* SCROLLABLE ALAN */}
-        <section className="scroll-vertical" style={daysScroll}>
-          <div style={{ display:'grid', gap:16 }}>
+        <section className="px-days-scroll">
+          <div className="px-days-grid">
             {days.map(date => (
-              <div key={date} style={dayCard}>
-                <div style={{ fontWeight:700, marginBottom:10 }}>{trDate(date)}</div>
-                <div style={timeGrid}>
-                  {HOURS.map(h => {
+              <div key={date} className="px-day-card">
+                <div className="px-day-title">{trDate(date)}</div>
+                <div className="px-time-grid">
+                  {hoursFor(date).map(h => {
                     const st = statusOf(date, h)
-                    const style =
-                      st === 'free'     ? timeBtnFree :
-                      st === 'reserved' ? timeBtnReserved :
-                                          timeBtnClosed
+                    const cls =
+                      st === 'free'     ? 'px-time-btn px-time-free' :
+                      st === 'reserved' ? 'px-time-btn px-time-reserved' :
+                                          'px-time-btn px-time-closed'
                     return (
                       <button
                         key={h}
                         disabled={st !== 'free'}
                         onClick={() => book(date, h)}
-                        style={style}
+                        className={cls}
                         title={`${trDate(date)} ${h} — ${nextHour(h)}`}
                       >
-                        {h} — {nextHour(h)}
+                        <span className="px-slot-hour">{h}</span>
+                        <span className="px-slot-dash"> — </span>
+                        <span className="px-slot-hour">{nextHour(h)}</span>
                       </button>
                     )
                   })}
@@ -288,32 +280,164 @@ export default function BookPage() {
           </div>
         </section>
       </main>
+
+      {/* ---- Styles ---- */}
+      <style jsx global>{`
+        :root{
+          --slots-max-h: 60dvh;
+          --slots-max-w: 1580px;          /* Slot alanı azami genişlik (sola hizalı) */
+          --slot-min: 420px;              /* Slot butonu min genişlik */
+          --px-green:#2e7d32; --px-red:#c62828; --px-muted:#666;
+          --safe-bottom: env(safe-area-inset-bottom, 16px);
+        }
+
+        *,*::before,*::after{ box-sizing:border-box }
+        html,body{ height:100% }
+        body{ margin:0; overflow:hidden }
+
+        .px-page{
+          width:100%;                     /* 200% KALDIRILDI */
+          height:100dvh;
+          display:flex; flex-direction:column; min-height:0;
+          background:#fff; color:#000;
+          font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+        }
+
+        .px-header{
+          position:sticky; top:0; z-index:10; background:#fff;
+          border-bottom:1px solid #e5e5e5;
+          padding:12px 20px 12px 0;       /* Sol padding 0, tamamen sola */
+          display:flex; align-items:center; justify-content:flex-end;
+          flex:0 0 auto;
+        }
+        .px-credits{ font-weight:700; font-size:14px }
+        .px-credits span{ color:#007b55 }
+
+        .px-container{
+          max-width:none;
+          width:100%;
+          margin:10px 0 12px 0;
+          padding:0 20px 0 0;             /* Sol 0: en soldan başlar */
+          display:flex; flex-direction:column; gap:8px;
+          flex:1 1 auto; min-height:0;
+          overflow:hidden; overflow-x:hidden;
+        }
+
+        .px-legend-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; flex:0 0 auto }
+        .px-rules{ font-size:14px; color:#555; line-height:1.35; margin:0; flex:0 0 auto }
+
+        .px-days-scroll{
+          flex:0 0 auto;
+          width:100%;
+          max-width: var(--slots-max-w);
+          margin-left: 0;                  /* SOLA YAPIŞ */
+          margin-right: auto;              /* sağa doğru boşluk */
+          max-height: var(--slots-max-h);
+          overflow:auto; overflow-x:hidden;
+          border:1px solid #eee; border-radius:12px;
+          padding:12px; padding-bottom:calc(12px + var(--safe-bottom));
+          background:#fff; -webkit-overflow-scrolling:touch;
+          overscroll-behavior:contain; scrollbar-gutter:stable both-edges;
+        }
+
+        .px-days-grid{ display:grid; gap:16px; grid-template-columns: 1fr; }
+        .px-day-card{ border:1px solid #cfcfcf; border-radius:12px; padding:16px; background:#fafafa }
+        .px-day-title{ font-weight:700; margin-bottom:10px; font-size:15px }
+
+        .px-time-grid{
+          display:grid; gap:12px;
+          grid-template-columns: repeat(auto-fit, minmax(var(--slot-min), 1fr));
+        }
+        .px-time-btn{
+          border-radius:12px; padding:14px; min-height:48px; font-weight:700; font-size:16px;
+          border:1px solid transparent; background:#fff; display:flex; align-items:center; justify-content:center;
+          user-select:none; -webkit-tap-highlight-color:transparent; cursor:pointer;
+        }
+        .px-time-free{ border-color:var(--px-green); color:var(--px-green) }
+        .px-time-closed{ border-color:#9e9e9e; color:#9e9e9e; cursor:not-allowed; background:#f1f1f1 }
+        .px-time-reserved{ border-color:var(--px-red); color:#fff; background: var(--px-red); cursor:not-allowed }
+        .px-time-free:active{ transform:scale(0.98) }
+        .px-slot-hour{ font-variant-numeric: tabular-nums }
+        .px-slot-dash{ opacity:.8 }
+
+        /* ===== Toast ===== */
+        .px-toast-wrap{
+          position: fixed;
+          top: 14px;
+          right: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          z-index: 9999;
+          pointer-events: none;
+        }
+        .px-toast{
+          pointer-events: auto;
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          align-items: center;
+          gap: 10px;
+          min-width: 280px;
+          max-width: min(92vw, 520px);
+          padding: 12px 12px;
+          border: 1px solid;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0,0,0,.08);
+          background: #fff;
+          animation: px-toast-in .18s ease-out both;
+        }
+        @keyframes px-toast-in{
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .px-toast-success{ border-color:#c7f2df; background:#e9fbf6; }
+        .px-toast-error  { border-color:#ffd1d1; background:#ffecec; }
+        .px-toast-info   { border-color:#cfe3ff; background:#f1f6ff; }
+
+        .px-toast-icon{
+          width: 22px; height: 22px;
+          display: grid; place-items: center;
+          font-size: 18px;
+        }
+        .px-toast-text{
+          font-size: 14px;
+          color: #222;
+          line-height: 1.35;
+          white-space: pre-wrap;
+        }
+        .px-toast-close{
+          border: none; background: transparent; cursor: pointer;
+          font-size: 18px; line-height: 1; padding: 4px 6px; color:#444;
+          border-radius: 6px;
+        }
+        .px-toast-close:hover{ background: rgba(0,0,0,.06); }
+
+        .px-spinner{
+          width: 16px; height: 16px; border-radius: 50%;
+          border: 2px solid rgba(0,0,0,.15);
+          border-top-color: rgba(0,0,0,.6);
+          display: inline-block;
+        }
+        .px-spinner.spin{ animation: px-spin 0.8s linear infinite; }
+        @keyframes px-spin{ to { transform: rotate(360deg); } }
+
+        /* Mobil */
+        @media (max-width: 479px){
+          .px-credits{ font-size:13px }
+          .px-day-card{ padding:12px }
+          .px-day-title{ font-size:13px }
+          .px-time-grid{ grid-template-columns: 1fr; }
+          .px-time-btn{ font-size:15px; min-height:48px }
+        }
+      `}</style>
     </div>
   )
 }
 
-/* ====== Styles ====== */
-const pageStyle  = { background:'#fff', color:'#000', minHeight:'100vh', fontFamily:'Arial, sans-serif' }
-const headerStyle= { borderBottom:'1px solid #e5e5e5', padding:'12px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }
-const brandStyle = { fontSize:20, fontWeight:'bold' }
-const container  = { maxWidth: 1000, margin:'24px auto', padding:'0 16px' }
-const h1Style    = { margin:'0 0 12px 0', color:'#007b55', textAlign:'center' }
-
-const legendRow  = { display:'flex', alignItems:'center', gap:16, marginBottom:8 }
+/* Legend bileşeni */
 const Legend = ({ color, label }) => (
   <div style={{ display:'flex', alignItems:'center', gap:6 }}>
     <span style={{ width:14, height:14, background:color, borderRadius:4, display:'inline-block', opacity:0.9 }} />
     <span style={{ fontSize:13, color:'#444' }}>{label}</span>
   </div>
 )
-
-/* Scrollable gün/saat alanı */
-const daysScroll = { maxHeight:'60vh', overflowY:'auto', paddingRight:6, marginTop:10, border:'1px solid #eee', borderRadius:12 }
-
-const dayCard   = { border:'1px solid #cfcfcf', borderRadius:12, padding:16, background:'#fafafa' }
-const timeGrid  = { display:'grid', gap:10, gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))' }
-
-const baseBtn        = { borderRadius:10, padding:'10px 12px', fontWeight:600, cursor:'pointer', border:'1px solid transparent', background:'#fff', minWidth:160, textAlign:'center' }
-const timeBtnFree    = { ...baseBtn, borderColor:'#2e7d32', color:'#2e7d32' }
-const timeBtnClosed  = { ...baseBtn, borderColor:'#9e9e9e', color:'#9e9e9e', cursor:'not-allowed', background:'#f1f1f1' }
-const timeBtnReserved= { ...baseBtn, borderColor:'#c62828', color:'#fff', background:'#c62828', cursor:'not-allowed' }

@@ -118,53 +118,72 @@ export default function AdminHistoryPage() {
       return r.slot.date >= last30Start && r.slot.date <= today
     })
 
-  if (loading) return <main style={{ padding:16 }}>Yükleniyor…</main>
+  if (loading) {
+    return (
+      <main className="wrap">
+        <div className="skeleton">
+          <div className="sk-title"/>
+          <div className="sk-card"/>
+          <div className="sk-card"/>
+        </div>
+        <style jsx>{`
+          .wrap { padding: 16px }
+          .skeleton { max-width: 860px; margin: 0 auto }
+          .sk-title { height: 28px; width: 60%; border-radius: 8px; background: #eee; margin: 8px 0 16px }
+          .sk-card { height: 96px; border-radius: 12px; background: #f2f2f2; margin: 8px 0 }
+        `}</style>
+      </main>
+    )
+  }
 
   return (
-    <main style={wrap}>
-      <h2 style={title}>Geçmiş Randevular</h2>
-      {err && <div style={errBox}>Hata: {err}</div>}
+    <main className="wrap">
+      <header className="header">
+        <h2>Geçmiş Randevular</h2>
+        {err && <div className="err">Hata: {err}</div>}
+      </header>
 
-      <div style={filterRow}>
-        <label style={{ fontSize:14, color:'#333' }}>
-          Eski bir gün seç:
+      <div className="filters" role="region" aria-label="Filtreler">
+        <label className="label">
+          <span>Eski bir gün seç:</span>
           <input
             type="date"
             max={today}
             value={pickedDate}
             onChange={(e) => setPickedDate(e.target.value)}
-            style={dateInput}
+            className="dateInput"
           />
         </label>
         {pickedDate && (
-          <button onClick={() => setPickedDate('')} style={clearBtn}>
+          <button onClick={() => setPickedDate('')} className="clearBtn" aria-label="Tarihi temizle">
             ✕ Temizle (Son 30 gün)
           </button>
         )}
       </div>
 
       {filtered.length === 0 ? (
-        <p style={{ color:'#555' }}>
+        <p className="empty">
           {pickedDate
             ? `${trLongDate(pickedDate)} için tamamlanan randevu yok.`
             : 'Son 30 günde tamamlanan randevu bulunmuyor.'}
         </p>
       ) : (
-        <div className="scroll-vertical" style={scrollArea}>
-          <ul style={list}>
+        <div className="scroller" role="feed">
+          <ul className="list">
             {filtered.map(r => {
               const s = r.slot
               const p = r.profile || {}
               const fullName = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || '(İsim yok)'
               return (
-                <li key={r.id} style={card}>
-                  <div style={row}>
-                    <div>
-                      <b>{trLongDate(s.date)}</b> — {s.time} ({s.duration_minutes} dk)
-                      <div style={muted}>Hasta: <b>{fullName}</b></div>
-                      <div style={muted}>Tel: {p.phone ?? '-'}</div>
+                <li key={r.id} className="card" role="article">
+                  <div className="row">
+                    <div className="info">
+                      <b className="date">{trLongDate(s.date)}</b>
+                      <div className="time">{s.time} <span className="dot"/> {s.duration_minutes} dk</div>
+                      <div className="muted">Hasta: <b>{fullName}</b></div>
+                      <div className="muted">Tel: {p.phone ?? '-'}</div>
                     </div>
-                    <span style={badgeDone}>Tamamlandı ✅</span>
+                    <span className="badgeDone">Tamamlandı ✅</span>
                   </div>
                 </li>
               )
@@ -172,28 +191,86 @@ export default function AdminHistoryPage() {
           </ul>
         </div>
       )}
+
+      <style jsx>{`
+        :root {
+          --maxw: 860px;
+          --radius: 14px;
+          --bg: #fafafa;
+          --fg: #111;
+          --muted: #555;
+          --muted-2: #777;
+          --primary: #007b55;
+          --ok-bg: #e7f6ec;
+          --ok-br: #bce3c7;
+        }
+        .wrap {
+          color: var(--fg);
+          background: #fff;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+          margin: 0 auto;
+          padding: 12px 12px 24px;
+          max-width: var(--maxw);
+        }
+        .header { position: sticky; top: 0; z-index: 10; background: white; padding: 8px 0 10px; border-bottom: 2px solid var(--primary); margin-bottom: 8px }
+        .header h2 { font-size: 1.25rem; line-height: 1.2 }
+        .err { color: crimson; margin-top: 6px; font-size: .95rem }
+
+        .filters { position: sticky; top: 54px; z-index: 9; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: white; padding: 8px 0 10px; border-bottom: 1px dashed #e5e5e5; margin-bottom: 8px }
+        .label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333 }
+        .dateInput { appearance: none; -webkit-appearance: none; padding: 8px 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px }
+        .clearBtn { background: #eee; border: 1px solid #ddd; border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 14px }
+        .clearBtn:active { transform: translateY(1px) }
+
+        .empty { padding: 8px 2px }
+
+        .scroller { max-height: 70vh; overflow-y: auto; padding: 4px; -webkit-overflow-scrolling: touch }
+        .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px }
+        .card { border: 1px solid #e5e5e5; border-radius: var(--radius); background: var(--bg); padding: 12px; -webkit-tap-highlight-color: transparent }
+
+        .row { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 8px }
+        .info { min-width: 0 }
+        .date { display: block; font-size: 1rem }
+        .time { font-size: .95rem; margin: 2px 0 6px }
+        .dot { display: inline-block; width: 4px; height: 4px; border-radius: 999px; background: #aaa; margin: 0 6px }
+        .muted { font-size: .95rem; color: var(--muted) }
+
+        .badgeDone { white-space: nowrap; align-self: start; border: 1px solid var(--ok-br); border-radius: 999px; padding: 6px 10px; font-size: .9rem; font-weight: 700; color: #1e7e34; background: var(--ok-bg) }
+
+        /* ====== Mobil iyileştirmeler ====== */
+        @media (max-width: 480px) {
+          .wrap { padding: 12px 10px 24px }
+          .header h2 { font-size: 1.1rem }
+          .filters { top: 48px }
+          .label { width: 100%; justify-content: space-between }
+          .dateInput { width: 100%; padding: 10px 12px; font-size: 16px } /* iOS zoom engelle */
+          .clearBtn { width: 100%; text-align: center; padding: 10px 12px; font-size: 16px }
+          .scroller { max-height: calc(100dvh - 150px) }
+          .card { padding: 12px }
+          .row { grid-template-columns: 1fr; }
+          .badgeDone { justify-self: start; }
+          .date { font-size: 1rem }
+          .time { font-size: .95rem }
+          .muted { font-size: .9rem }
+          .list { gap: 8px }
+        }
+
+        /* Orta ekranlar */
+        @media (min-width: 481px) and (max-width: 768px) {
+          .header h2 { font-size: 1.2rem }
+          .scroller { max-height: 65vh }
+          .card { padding: 14px }
+        }
+
+        /* Büyük ekranlar */
+        @media (min-width: 769px) {
+          .wrap { padding: 0 16px 24px; margin-top: 24px }
+          .header h2 { font-size: 1.35rem }
+          .scroller { max-height: 60vh }
+          .card { padding: 16px }
+          .date { font-size: 1.05rem }
+        }
+      `}</style>
     </main>
   )
-}
-
-/* === Styles === */
-const wrap   = { maxWidth:860, margin:'24px auto', padding:'0 16px', fontFamily:'Arial, sans-serif', color:'#111', background:'#fff' }
-const title  = { borderBottom:'2px solid #007b55', paddingBottom:6, marginBottom:12 }
-const filterRow = { display:'flex', alignItems:'center', gap:10, marginBottom:10, flexWrap:'wrap' }
-const dateInput = { marginLeft:8, padding:'6px 10px', border:'1px solid #ddd', borderRadius:8 }
-const clearBtn  = { background:'#eee', border:'1px solid #ddd', borderRadius:8, padding:'6px 10px', cursor:'pointer' }
-const scrollArea = { maxHeight:'60vh', overflowY:'auto', paddingRight:6 }
-const list   = { listStyle:'none', padding:0, display:'grid', gap:12 }
-const card   = { border:'1px solid #e5e5e5', borderRadius:12, padding:14, background:'#fafafa' }
-const row    = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, flexWrap:'wrap' }
-const muted  = { fontSize:13, color:'#555' }
-const errBox = { color:'crimson', marginTop:8 }
-const badgeDone = {
-  border:'1px solid #bce3c7',
-  background:'#e7f6ec',
-  color:'#1e7e34',
-  borderRadius:999,
-  padding:'4px 10px',
-  fontWeight:700,
-  fontSize:13
 }

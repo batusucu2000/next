@@ -5,21 +5,21 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
 /* Yardımcılar */
-const onlyDigits = (v='') => (v.match(/\d/g) || []).join('')
-const isEmail = (s='') => s.includes('@') && /\S+@\S+\.\S+/.test(s)
-const toNat10 = (raw='') => {
+const onlyDigits = (v = '') => (v.match(/\d/g) || []).join('')
+const isEmail = (s = '') => s.includes('@') && /\S+@\S+\.\S+/.test(s)
+const toNat10 = (raw = '') => {
   const d = onlyDigits(raw)
   return d.length >= 10 ? d.slice(-10) : d
 }
-const isNat10 = (v='') => /^\d{10}$/.test(v)
+const isNat10 = (v = '') => /^\d{10}$/.test(v)
 const asE164TR = (nat10) => `+90${nat10}`
 
 export default function LoginPage() {
   const router = useRouter()
-  const [identifier, setIdentifier] = useState('') // e-posta veya telefon
-  const [password, setPassword]     = useState('')
-  const [loading, setLoading]       = useState(false)
-  const [errorMsg, setErrorMsg]     = useState('')
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     (async () => {
@@ -45,88 +45,162 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault()
     setErrorMsg('')
-    if (!password) return setErrorMsg('Şifre gerekli.')
+    
+    if (!password) {
+      return setErrorMsg('Lütfen şifrenizi girin.')
+    }
 
     const id = identifier.trim()
     let error
     setLoading(true)
+    
     try {
       if (isEmail(id)) {
-        ({ error } = await supabase.auth.signInWithPassword({ email: id, password }))
+        ({ error } = await supabase.auth.signInWithPassword({ 
+          email: id, 
+          password 
+        }))
       } else {
         const nat10 = toNat10(id)
         if (!isNat10(nat10)) {
-          throw new Error('Telefon 10 hane olmalı (5xxxxxxxxx).')
+          throw new Error('Lütfen geçerli bir telefon numarası girin (5xxxxxxxxx).')
         }
-        ({ error } = await supabase.auth.signInWithPassword({ phone: asE164TR(nat10), password }))
+        ({ error } = await supabase.auth.signInWithPassword({ 
+          phone: asE164TR(nat10), 
+          password 
+        }))
       }
+      
       if (error) throw error
       await redirectByRole()
     } catch (err) {
-      setErrorMsg(err.message || 'Giriş başarısız.')
+      setErrorMsg(
+        err.message === 'Invalid login credentials' 
+          ? 'Telefon numarası/e-posta veya şifre hatalı.'
+          : err.message || 'Giriş sırasında bir hata oluştu.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
+  const handleIdentifierChange = (value) => {
+    // Telefon numarası formatlama
+    if (!isEmail(value)) {
+      const digits = onlyDigits(value)
+      if (digits.length <= 10) {
+        // 5xx xxx xx xx formatı
+        let formatted = digits
+        if (digits.length > 3) formatted = `${digits.slice(0, 3)} ${digits.slice(3)}`
+        if (digits.length > 6) formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+        if (digits.length > 8) formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8)}`
+        setIdentifier(formatted)
+        return
+      }
+    }
+    setIdentifier(value)
+  }
+
   return (
-    <div>
+    <div className="px-auth-container">
       {/* ÜST BAR */}
-      <header className="px-topbar">
-        <div className="px-brand">
-          <span className="px-logo">Nil Sucu</span>
-          <span className="px-sub">Giriş</span>
+      <header className="px-auth-header">
+        <div className="px-auth-header-inner">
+          <div className="px-brand">
+            <span className="px-logo">Nil Sucu</span>
+            <span className="px-sub">Fizyoterapi Kliniği</span>
+          </div>
         </div>
       </header>
 
-      {/* SAYFA */}
-      <main className="px-landing" style={{ display:'grid', placeItems:'center' }}>
-        <section className="px-card" style={{ width:'100%', maxWidth:420 }}>
-          <h1 style={{ marginTop:0 }}>Giriş Yap</h1>
+      {/* ANA İÇERİK */}
+      <main className="px-auth-main">
+        <div className="px-auth-card">
+          <div className="px-auth-header">
+            <h1 className="px-auth-title">Hesabınıza Giriş Yapın</h1>
+            <p className="px-auth-subtitle">
+              Fizyoterapi hizmetlerinize erişmek için giriş yapın
+            </p>
+          </div>
 
+          {/* HATA MESAJI */}
           {errorMsg && (
-            <div style={{
-              marginTop:10, background:'#ffe8e6', color:'#b71c1c',
-              border:'1px solid #ffcccc', padding:'8px 10px', borderRadius:8, fontSize:14
-            }}>
-              Hata: {errorMsg}
+            <div className="px-alert px-alert-error">
+              <span className="px-alert-icon">⚠️</span>
+              <span>{errorMsg}</span>
             </div>
           )}
 
+          {/* GİRİŞ FORMU */}
           <form onSubmit={handleLogin} className="px-form">
-            <label>
-             Telefon
+            <div className="px-form-group">
+              <label className="px-form-label">
+                Telefon
+              </label>
               <input
                 type="text"
-                placeholder="5xxxxxxxxx"
+                className="px-form-input"
+                placeholder="5xx xxx xx xx"
                 value={identifier}
-                onChange={(e)=>setIdentifier(e.target.value)}
+                onChange={(e) => handleIdentifierChange(e.target.value)}
                 autoComplete="username"
                 required
+                disabled={loading}
               />
-            </label>
+              <div className="px-form-helper">
+                10 haneli telefon numaranızı (5xxxxxxxxx) veya e-posta adresinizi girin
+              </div>
+            </div>
 
-            <label>
-              Şifre
+            <div className="px-form-group">
+              <label className="px-form-label">
+                Şifre
+              </label>
               <input
                 type="password"
+                className="px-form-input"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e)=>setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
+                disabled={loading}
               />
-            </label>
+            </div>
 
-            <button type="submit" className="px-btn px-primary" disabled={loading}>
-              {loading ? 'Giriş yapılıyor…' : 'Giriş Yap'}
+            <button 
+              type="submit" 
+              className="px-auth-btn" 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <div className="px-spinner"></div>
+                  Giriş Yapılıyor...
+                </>
+              ) : (
+                <>
+                  <span>🔐</span>
+                  Giriş Yap
+                </>
+              )}
             </button>
           </form>
 
-          <p style={{ marginTop:12, fontSize:13, color:'var(--muted)' }}>
-            Hesabınız yok mu? Lütfen yöneticinizle iletişime geçin.
-          </p>
-        </section>
+          {/* KAYIT LİNKİ */}
+          <div className="px-auth-footer">
+            <span style={{ color: 'var(--muted)', fontSize: '14px' }}>
+              Hesabınız yoksa?{' '}
+              <button
+                onClick={() => router.push('/register')}
+                className="px-auth-link"
+                disabled={loading}
+              >
+                Buradan kayıt olun
+              </button>
+            </span>
+          </div>
+        </div>
       </main>
     </div>
   )

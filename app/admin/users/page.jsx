@@ -6,10 +6,7 @@ import { supabase } from '@/lib/supabaseClient'
 
 /* Telefon yardımcıları: 10 hane (ulusal), DB'ye +90 ile yaz */
 const digits = (v='') => (v.match(/\d/g) || []).join('')
-const toNat10 = (raw='') => {
-  const d = digits(raw)
-  return d.length >= 10 ? d.slice(-10) : d
-}
+const toNat10 = (raw='') => { const d = digits(raw); return d.length >= 10 ? d.slice(-10) : d }
 const isNat10 = (v) => /^\d{10}$/.test(v || '')
 const asE164TR = (nat10) => `+90${nat10}`
 
@@ -47,10 +44,7 @@ export default function AdminUsersPage() {
   }, [router])
 
   async function safeJson(res) {
-    try {
-      const t = await res.text()
-      return t ? JSON.parse(t) : null
-    } catch { return null }
+    try { const t = await res.text(); return t ? JSON.parse(t) : null } catch { return null }
   }
 
   async function load() {
@@ -109,9 +103,7 @@ export default function AdminUsersPage() {
 
       if (payload.password || payload.phone) {
         const res = await fetch('/api/admin/users', {
-          method: 'PATCH',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify(payload)
+          method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload)
         })
         const json = await safeJson(res)
         if (!res.ok || !json?.ok) throw new Error(json?.message || `AUTH güncellenemedi (HTTP ${res.status})`)
@@ -122,9 +114,7 @@ export default function AdminUsersPage() {
       await load()
     } catch (e) {
       setErr(e.message || String(e))
-    } finally {
-      setTimeout(()=>setMsg(''), 1500)
-    }
+    } finally { setTimeout(()=>setMsg(''), 1500) }
   }
 
   async function handleDelete(id) {
@@ -138,10 +128,7 @@ export default function AdminUsersPage() {
 
       const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
       const json = await safeJson(res)
-      if (!res.ok || !(json?.ok)) {
-        const message = json?.message || `İstek başarısız (HTTP ${res.status})`
-        throw new Error(message)
-      }
+      if (!res.ok || !(json?.ok)) throw new Error(json?.message || `İstek başarısız (HTTP ${res.status})`)
 
       setMsg('Hesap silindi ✅')
       await load()
@@ -154,9 +141,7 @@ export default function AdminUsersPage() {
   }
 
   // Yeni kullanıcı: SADECE telefon(10h) + parola zorunlu
-  const [newRow, setNewRow] = useState({
-    password:'', first_name:'', last_name:'', phone_nat10:'', credits:0, role:'user'
-  })
+  const [newRow, setNewRow] = useState({ password:'', first_name:'', last_name:'', phone_nat10:'', credits:0, role:'user' })
 
   const createUser = async () => {
     try {
@@ -165,98 +150,90 @@ export default function AdminUsersPage() {
 
       setMsg('Oluşturuluyor…'); setErr('')
       const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
+        method: 'POST', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({
-          phone: asE164TR(newRow.phone_nat10), // +90… formatı
-          password: newRow.password,
-          first_name: newRow.first_name,
-          last_name: newRow.last_name,
-          credits: newRow.credits,
-          role: newRow.role
+          phone: asE164TR(newRow.phone_nat10), password: newRow.password,
+          first_name: newRow.first_name, last_name: newRow.last_name,
+          credits: newRow.credits, role: newRow.role
         })
       })
-
       const json = await safeJson(res)
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.message || `Oluşturulamadı (HTTP ${res.status})`)
-      }
+      if (!res.ok || !json?.ok) throw new Error(json?.message || `Oluşturulamadı (HTTP ${res.status})`)
 
       setMsg('Kullanıcı oluşturuldu ✅')
       setNewRow({ first_name:'', last_name:'', phone_nat10:'', password:'', credits:0, role:'user' })
       await load()
     } catch (e) {
       setErr(e.message || String(e))
-    } finally {
-      setTimeout(()=>setMsg(''), 1500)
-    }
+    } finally { setTimeout(()=>setMsg(''), 1500) }
   }
 
   if (loading) return <main style={{ padding: 16 }}>Yükleniyor…</main>
 
   return (
-    <main style={wrap}>
-      <h2 style={title}>Kullanıcı İşlemleri</h2>
-      {msg && <div style={okBox}>{msg}</div>}
-      {err && <div style={errBox}>Hata: {err}</div>}
+    <main className="wrap">
+      <h2 className="title">Kullanıcı İşlemleri</h2>
+      {msg && <div className="okBox" role="status">{msg}</div>}
+      {err && <div className="errBox" role="alert">Hata: {err}</div>}
 
-      <div style={toolbar}>
+      <div className="toolbar">
         <input
           placeholder="Ara: ad, soyad veya telefon"
           value={q}
           onChange={(e)=>setQ(e.target.value)}
           onKeyDown={(e)=>{ if (e.key==='Enter') load() }}
-          style={searchInput}
+          className="searchInput"
         />
-        <button onClick={load} style={btn}>Ara</button>
+        <button onClick={load} className="btn">Ara</button>
       </div>
 
-      <div className="scroll-vertical" style={{ ...tableScroll, marginBottom:10 }}>
-        <table style={table}>
+      {/* Masaüstü: tablo, Mobil: kartlar */}
+      <div className="tableScroll">
+        <table className="table" role="table">
           <thead>
-            <tr style={{ background:'#fafafa', position:'sticky', top:0 }}>
-              <th style={th}>Ad</th>
-              <th style={th}>Soyad</th>
-              <th style={th}>Telefon</th>
-              <th style={th}>Parola</th>
-              <th style={th}>Rol</th>
-              <th style={th}>Kredi</th>
-              <th style={th}>İşlem</th>
+            <tr>
+              <th>Ad</th>
+              <th>Soyad</th>
+              <th>Telefon</th>
+              <th>Parola</th>
+              <th>Rol</th>
+              <th>Kredi</th>
+              <th>İşlem</th>
             </tr>
           </thead>
           <tbody>
             {/* Yeni kullanıcı satırı */}
             <tr>
-              <td style={td}><input style={inputStyle} value={newRow.first_name} onChange={e=>setNewRow({...newRow,first_name:e.target.value})}/></td>
-              <td style={td}><input style={inputStyle} value={newRow.last_name}  onChange={e=>setNewRow({...newRow,last_name:e.target.value})}/></td>
-              <td style={td}>
-                <div style={{ display:'grid', gridTemplateColumns:'72px 1fr', gap:8 }}>
-                  <input value="+90" readOnly disabled style={{ ...inputStyle, textAlign:'center', background:'#f7f7f7', color:'#555' }}/>
+              <td><input className="input" value={newRow.first_name} onChange={e=>setNewRow({...newRow,first_name:e.target.value})}/></td>
+              <td><input className="input" value={newRow.last_name}  onChange={e=>setNewRow({...newRow,last_name:e.target.value})}/></td>
+              <td>
+                <div className="phoneRow">
+                  <input value="+90" readOnly disabled className="input prefix" />
                   <input
-                    style={inputStyle}
+                    className="input"
                     inputMode="numeric"
-                    pattern="\d{10}"
+                    pattern="\\d{10}"
                     maxLength={10}
                     value={newRow.phone_nat10}
                     onChange={e=>setNewRow({...newRow,phone_nat10: digits(e.target.value).slice(0,10) })}
                     placeholder="5xxxxxxxxx"
                   />
                 </div>
-                {!isNat10(newRow.phone_nat10) && newRow.phone_nat10 && <div style={hint}>10 hane olmalı</div>}
+                {!isNat10(newRow.phone_nat10) && newRow.phone_nat10 && <div className="hint">10 hane olmalı</div>}
               </td>
-              <td style={td}>
-                <input style={inputStyle} type="password" value={newRow.password} onChange={e=>setNewRow({...newRow,password:e.target.value})} placeholder="Parola"/>
+              <td>
+                <input className="input" type="password" value={newRow.password} onChange={e=>setNewRow({...newRow,password:e.target.value})} placeholder="Parola"/>
               </td>
-              <td style={td}>
-                <select style={inputStyle} value={newRow.role} onChange={e=>setNewRow({...newRow,role:e.target.value})}>
+              <td>
+                <select className="input" value={newRow.role} onChange={e=>setNewRow({...newRow,role:e.target.value})}>
                   <option value="user">user</option>
                   <option value="admin">admin</option>
                 </select>
               </td>
-              <td style={td}><input style={inputStyle} type="number" value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/></td>
-              <td style={td}>
+              <td><input className="input" type="number" value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/></td>
+              <td>
                 <button
-                  style={btnPrimary}
+                  className="btn primary"
                   disabled={!isNat10(newRow.phone_nat10) || !newRow.password}
                   onClick={createUser}
                 >
@@ -270,45 +247,45 @@ export default function AdminUsersPage() {
               const isEdit = editingId === r.id
               return (
                 <tr key={r.id}>
-                  <td style={td}>{isEdit ? <input style={inputStyle} value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/> : (r.first_name||'')}</td>
-                  <td style={td}>{isEdit ? <input style={inputStyle} value={form.last_name}  onChange={e=>setForm({...form,last_name:e.target.value})}/> : (r.last_name||'')}</td>
-                  <td style={td}>
+                  <td>{isEdit ? <input className="input" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/> : (r.first_name||'')}</td>
+                  <td>{isEdit ? <input className="input" value={form.last_name}  onChange={e=>setForm({...form,last_name:e.target.value})}/> : (r.last_name||'')}</td>
+                  <td>
                     {isEdit ? (
-                      <div style={{ display:'grid', gridTemplateColumns:'72px 1fr', gap:8 }}>
-                        <input value="+90" readOnly disabled style={{ ...inputStyle, textAlign:'center', background:'#f7f7f7', color:'#555' }}/>
+                      <div className="phoneRow">
+                        <input value="+90" readOnly disabled className="input prefix" />
                         <input
-                          style={inputStyle}
+                          className="input"
                           inputMode="numeric"
-                          pattern="\d{10}"
+                          pattern="\\d{10}"
                           maxLength={10}
                           value={form.phone_nat10}
                           onChange={e=>setForm({...form,phone_nat10: digits(e.target.value).slice(0,10) })}
                         />
                       </div>
                     ) : (r.phone || '')}
-                    {isEdit && !isNat10(form.phone_nat10) && form.phone_nat10 && <div style={hint}>10 hane olmalı</div>}
+                    {isEdit && !isNat10(form.phone_nat10) && form.phone_nat10 && <div className="hint">10 hane olmalı</div>}
                   </td>
-                  <td style={td}>{isEdit ? <input style={inputStyle} type="password" placeholder="(opsiyonel)" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/> : '—'}</td>
-                  <td style={td}>
+                  <td>{isEdit ? <input className="input" type="password" placeholder="(opsiyonel)" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/> : '—'}</td>
+                  <td>
                     {isEdit
-                      ? <select style={inputStyle} value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
+                      ? <select className="input" value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
                           <option value="user">user</option>
                           <option value="admin">admin</option>
                         </select>
                       : r.role}
                   </td>
-                  <td style={td}>{isEdit ? <input style={inputStyle} type="number" value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/> : (r.credits ?? 0)}</td>
-                  <td style={{ ...td, whiteSpace:'nowrap', display:'flex', gap:6 }}>
+                  <td>{isEdit ? <input className="input" type="number" value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/> : (r.credits ?? 0)}</td>
+                  <td className="actions">
                     {isEdit ? (
                       <>
-                        <button style={btnXsPrimary} disabled={!isNat10(form.phone_nat10)} onClick={saveEdit}>Kaydet</button>
-                        <button style={btnXs} onClick={cancelEdit}>İptal</button>
+                        <button className="btn xs primary" disabled={!isNat10(form.phone_nat10)} onClick={saveEdit}>Kaydet</button>
+                        <button className="btn xs" onClick={cancelEdit}>İptal</button>
                       </>
                     ) : (
                       <>
-                        <button style={btnXs} onClick={()=>startEdit(r)}>Düzenle</button>
+                        <button className="btn xs" onClick={()=>startEdit(r)}>Düzenle</button>
                         <button
-                          style={btnXsDanger}
+                          className="btn xs danger"
                           onClick={() => handleDelete(r.id)}
                           disabled={busyDeleteId === r.id}
                         >
@@ -321,33 +298,137 @@ export default function AdminUsersPage() {
               )
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign:'center', color:'#666', padding:12 }}>Kayıt yok</td></tr>
+              <tr><td colSpan={7} className="empty">Kayıt yok</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Mobil kart görünümü */}
+      <ul className="cards">
+        {/* Yeni kullanıcı kartı */}
+        <li className="card">
+          <h3 className="cardTitle">Yeni Kullanıcı</h3>
+          <div className="grid2">
+            <input className="input" placeholder="Ad" value={newRow.first_name} onChange={e=>setNewRow({...newRow,first_name:e.target.value})}/>
+            <input className="input" placeholder="Soyad" value={newRow.last_name} onChange={e=>setNewRow({...newRow,last_name:e.target.value})}/>
+          </div>
+          <div className="grid2">
+            <input className="input" value="+90" readOnly disabled />
+            <input className="input" inputMode="numeric" maxLength={10} placeholder="5xxxxxxxxx" value={newRow.phone_nat10} onChange={e=>setNewRow({...newRow,phone_nat10: digits(e.target.value).slice(0,10) })}/>
+          </div>
+          {!isNat10(newRow.phone_nat10) && newRow.phone_nat10 && <div className="hint">Telefon 10 hane olmalı</div>}
+          <input className="input" type="password" placeholder="Parola" value={newRow.password} onChange={e=>setNewRow({...newRow,password:e.target.value})}/>
+          <div className="grid2">
+            <select className="input" value={newRow.role} onChange={e=>setNewRow({...newRow,role:e.target.value})}>
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+            </select>
+            <input className="input" type="number" placeholder="Kredi" value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/>
+          </div>
+          <button className="btn primary w100" disabled={!isNat10(newRow.phone_nat10) || !newRow.password} onClick={createUser}>+ Ekle</button>
+        </li>
+
+        {/* Kayıt kartları */}
+        {rows.map(r => {
+          const isEdit = editingId === r.id
+          return (
+            <li key={r.id} className="card">
+              <div className="cardTitle">{r.first_name || '-'} {r.last_name || ''} <span className="badge">{r.role}</span></div>
+              {isEdit ? (
+                <>
+                  <div className="grid2">
+                    <input className="input" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/>
+                    <input className="input" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})}/>
+                  </div>
+                  <div className="grid2">
+                    <input className="input" value="+90" readOnly disabled />
+                    <input className="input" inputMode="numeric" maxLength={10} value={form.phone_nat10} onChange={e=>setForm({...form,phone_nat10: digits(e.target.value).slice(0,10) })}/>
+                  </div>
+                  {!isNat10(form.phone_nat10) && form.phone_nat10 && <div className="hint">Telefon 10 hane olmalı</div>}
+                  <input className="input" type="password" placeholder="(opsiyonel yeni parola)" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
+                  <div className="grid2">
+                    <select className="input" value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
+                      <option value="user">user</option>
+                      <option value="admin">admin</option>
+                    </select>
+                    <input className="input" type="number" value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/>
+                  </div>
+                  <div className="actionsRow">
+                    <button className="btn primary" disabled={!isNat10(form.phone_nat10)} onClick={saveEdit}>Kaydet</button>
+                    <button className="btn" onClick={cancelEdit}>İptal</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="meta"><b>Tel:</b> {r.phone || '-'}</div>
+                  <div className="meta"><b>Kredi:</b> {r.credits ?? 0}</div>
+                  <div className="actionsRow">
+                    <button className="btn" onClick={()=>startEdit(r)}>Düzenle</button>
+                    <button className="btn danger" onClick={()=>handleDelete(r.id)} disabled={busyDeleteId === r.id}>
+                      {busyDeleteId === r.id ? 'Siliniyor…' : 'Sil'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+
+      <style jsx>{`
+        :root { --maxw: 1200px; --radius: 12px; --fg:#111; --muted:#555; --muted2:#777; --br:#e5e5e5; --primary:#007b55; }
+        .wrap { max-width: var(--maxw); margin: 24px auto; padding: 0 12px 24px; color: var(--fg); font-family: Arial, sans-serif }
+        .title { border-bottom: 2px solid var(--primary); padding-bottom: 6px; margin-bottom: 12px }
+        .okBox { color: #0a7; margin-top: 8px }
+        .errBox { color: crimson; margin-top: 8px }
+
+        .toolbar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap }
+        .searchInput { padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px; min-width: 240px; font-size: 16px }
+        .btn { padding: 10px 12px; border: 1px solid #ddd; background: #fff; border-radius: 10px; cursor: pointer; font-size: 14px }
+        .btn.primary { background: #007b55; color: #fff; border-color: #007b55 }
+        .btn.danger { background: #e74c3c; color: #fff; border-color: #e74c3c }
+        .btn.xs { padding: 6px 10px; font-size: 13px }
+        .btn.w100 { width: 100% }
+
+        /* Tablo */
+        .tableScroll { max-height: 70vh; overflow: auto; border: 1px solid #eee; border-radius: 10px; display: none }
+        .table { width: 100%; border-collapse: collapse; min-width: 720px }
+        thead tr { background: #fafafa; position: sticky; top: 0; z-index: 1 }
+        th, td { padding: 10px; border-bottom: 1px solid #f4f4f4; text-align: left; font-size: 14px }
+        th { border-bottom: 1px solid #eee; font-weight: 700; font-size: 14px }
+        .actions { white-space: nowrap; display: flex; gap: 6px }
+        .input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; background: #fff; font-size: 14px }
+        .input.prefix { text-align: center; background: #f7f7f7; color: #555 }
+        .phoneRow { display: grid; grid-template-columns: 72px 1fr; gap: 8px }
+        .hint { font-size: 12px; color: crimson; margin-top: 4px }
+        .empty { text-align: center; color: #666; padding: 12px }
+
+        /* Kartlar (Mobil) */
+        .cards { display: grid; gap: 12px; list-style: none; padding: 0; margin: 12px 0 0 }
+        .card { border: 1px solid #e5e5e5; border-radius: var(--radius); background: #fafafa; padding: 12px }
+        .cardTitle { font-weight: 700; margin: 0 0 8px; display: flex; align-items: center; gap: 8px }
+        .badge { font-size: 12px; border: 1px solid #cfeee1; color: #1e7e34; background: #e7f6ec; border-radius: 999px; padding: 2px 8px }
+        .meta { font-size: 14px; color: var(--muted); margin: 4px 0 }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+        .actionsRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px }
+
+        /* Ekran kırılımları */
+        @media (min-width: 768px) {
+          .tableScroll { display: block }
+          .cards { display: none }
+          .wrap { padding: 0 16px 24px }
+        }
+
+        /* Küçük ekran iyileştirmeleri */
+        @media (max-width: 480px) {
+          .searchInput { width: 100%; font-size: 16px }
+          .btn { font-size: 16px }
+          .input { font-size: 16px } /* iOS zoom engelle */
+          .grid2 { grid-template-columns: 1fr } /* İki sütunu tek sütuna düşür */
+          .actionsRow { grid-template-columns: 1fr 1fr }
+        }
+      `}</style>
     </main>
   )
 }
-
-/* Styles */
-const wrap   = { maxWidth: 1200, margin:'24px auto', padding:'0 16px', fontFamily:'Arial, sans-serif', color:'#111' }
-const title  = { borderBottom:'2px solid #007b55', paddingBottom:6, marginBottom:12 }
-const okBox  = { color:'#0a7', marginTop:8 }
-const errBox = { color:'crimson', marginTop:8 }
-
-const toolbar = { display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }
-const searchInput = { padding:'8px 10px', border:'1px solid #ddd', borderRadius:8, minWidth:260 }
-
-const btn = { padding:'8px 12px', borderWidth:1, borderStyle:'solid', borderColor:'#ddd', borderRadius:8, background:'#fff', cursor:'pointer' }
-const btnPrimary = { ...btn, background:'#007b55', color:'#fff', borderColor:'#007b55' }
-const btnXs = { ...btn, padding:'4px 8px', fontSize:13 }
-const btnXsPrimary = { ...btnXs, background:'#007b55', color:'#fff', borderColor:'#007b55' }
-const btnXsDanger = { ...btnXs, background:'#e74c3c', color:'#fff', borderColor:'#e74c3c' }
-
-const tableScroll = { maxHeight:'70vh', overflowY:'auto', paddingRight:6, border:'1px solid #eee', borderRadius:10 }
-const table = { width:'100%', borderCollapse:'collapse' }
-const th = { borderBottom:'1px solid #eee', padding:'10px', textAlign:'left', fontWeight:700, fontSize:14, position:'sticky', top:0, background:'#fafafa' }
-const td = { borderBottom:'1px solid #f4f4f4', padding:'8px 10px', textAlign:'left', fontSize:14 }
-const inputStyle = { width:'100%', padding:'6px 8px', border:'1px solid #ddd', borderRadius:6 }
-const hint = { fontSize:12, color:'crimson', marginTop:4 }

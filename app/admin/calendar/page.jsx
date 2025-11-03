@@ -21,11 +21,7 @@ const trDate = (yyyyMMdd) => {
   return `${day} ${month} ${year} ${weekday}`
 }
 
-/* Saatleri GÜNE göre üret:
-   - Pzt–Cum: 09:00..20:00 (12 başlangıç)
-   - Cmt    : 09:00..16:00 (8 başlangıç)
-   - Paz    : hiç slot yok
-*/
+/* Saatleri GÜNE göre üret */
 const hoursFor = (yyyyMMdd) => {
   const d = new Date(yyyyMMdd + 'T00:00:00')
   const dow = d.getDay() // 0: Pazar, 6: Cumartesi
@@ -170,13 +166,7 @@ export default function AdminCalendarPage() {
       if (!slot) {
         const { error } = await supabase
           .from('slots')
-          .insert({
-            id,
-            date,
-            time,
-            duration_minutes: 60,
-            status: willClose ? 'closed' : 'free'
-          })
+          .insert({ id, date, time, duration_minutes: 60, status: willClose ? 'closed' : 'free' })
         if (error) throw error
       } else {
         const { error } = await supabase
@@ -211,16 +201,8 @@ export default function AdminCalendarPage() {
 
       setErr(''); setMsg('Günlük işlem uygulanıyor…')
 
-      const payload = hours.map(h => ({
-        id: `${date}T${h}`,
-        date,
-        time: h,
-        duration_minutes: 60,
-        status: close ? 'closed' : 'free'
-      }))
-      const { error } = await supabase
-        .from('slots')
-        .upsert(payload, { onConflict: 'id' })
+      const payload = hours.map(h => ({ id: `${date}T${h}`, date, time: h, duration_minutes: 60, status: close ? 'closed' : 'free' }))
+      const { error } = await supabase.from('slots').upsert(payload, { onConflict: 'id' })
       if (error) throw error
 
       setMsg(close ? 'Tüm gün kapatıldı.' : 'Tüm gün açıldı.')
@@ -231,80 +213,70 @@ export default function AdminCalendarPage() {
     }
   }
 
-  if (loading) return <main style={{ padding: 16 }}>Yükleniyor…</main>
+  if (loading) return (
+    <main className="loading">
+      <div className="sk-title"/>
+      <div className="sk-card"/>
+      <div className="sk-card"/>
+      <style jsx>{`
+        .loading { padding: 16px; max-width: 900px; margin: 0 auto }
+        .sk-title { height: 28px; width: 60%; border-radius: 8px; background: #eee; margin: 8px 0 16px }
+        .sk-card { height: 110px; border-radius: 12px; background: #f2f2f2; margin: 8px 0 }
+      `}</style>
+    </main>
+  )
 
   return (
-    <div style={pageStyle}>
-      <header style={headerStyle}>
-        <div style={brandStyle}>Takvim Düzenleme</div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <label style={{ fontSize:14 }}>
-            Gün Seç (ilerisi):
-            <input
-              type="date"
-              min={todayISO()}
-              value={pickedDate}
-              onChange={(e) => setPickedDate(e.target.value)}
-              style={dateInput}
-            />
+    <div className="page">
+      <header className="hdr">
+        <div className="brand">Takvim Düzenleme</div>
+        <div className="controls">
+          <label className="dateLabel">
+            <span>Gün Seç (ilerisi):</span>
+            <input type="date" min={todayISO()} value={pickedDate} onChange={(e) => setPickedDate(e.target.value)} className="dateInput" />
           </label>
           {pickedDate && (
-            <button onClick={() => setPickedDate('')} style={btnGhost}>
-              ✕ Temizle (Önümüzdeki 30 gün)
-            </button>
+            <button onClick={() => setPickedDate('')} className="btn ghost">✕ Temizle (Önümüzdeki 30 gün)</button>
           )}
         </div>
       </header>
 
       {/* SCROLLABLE MAIN */}
-      <main style={container}>
-        <h1 style={h1Style}>Takvim (Admin)</h1>
+      <main className="container" role="main">
+        <h1 className="title">Takvim (Admin)</h1>
 
-        <div style={legendRow}>
+        <div className="legendRow">
           <Legend color="#2e7d32" label="Müsait" />
           <Legend color="#c62828" label="Rezerve" />
           <Legend color="#9e9e9e" label="Kapalı" />
         </div>
 
-        {msg && <div style={{ color:'#0a7', margin:'8px 0' }}>{msg}</div>}
-        {err && <div style={{ color:'crimson', margin:'8px 0' }}>Hata: {err}</div>}
+        {msg && <div className="ok">{msg}</div>}
+        {err && <div className="err">Hata: {err}</div>}
 
-        <section style={{ display: 'grid', gap: 16, marginTop: 8 }}>
+        <section className="days">
           {days.map(date => {
             const hours = hoursFor(date)
             const allClosed = hours.length > 0 && hours.every(h => statusOf(date, h) === 'closed')
             return (
-              <div key={date} style={dayCard}>
-                <div style={dayHead}>
-                  <div style={{ fontWeight: 700 }}>{trDate(date)}</div>
-                  <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:14, opacity: hours.length ? 1 : 0.6 }}>
-                    <input
-                      type="checkbox"
-                      disabled={hours.length === 0}
-                      checked={hours.length > 0 && allClosed}
-                      onChange={(e) => setWholeDay(date, e.target.checked)}
-                    />
-                    Tüm günü kapat
+              <div key={date} className="dayCard">
+                <div className="dayHead">
+                  <div className="dayTitle">{trDate(date)}</div>
+                  <label className="chkAll" style={{ opacity: hours.length ? 1 : 0.6 }}>
+                    <input type="checkbox" disabled={hours.length === 0} checked={hours.length > 0 && allClosed} onChange={(e) => setWholeDay(date, e.target.checked)} />
+                    <span>Tüm günü kapat</span>
                   </label>
                 </div>
 
                 {hours.length === 0 ? (
-                  <div style={{ fontSize:13, color:'#777' }}>Pazar: slot bulunmuyor.</div>
+                  <div className="empty">Pazar: slot bulunmuyor.</div>
                 ) : (
-                  <div style={timeGrid}>
+                  <div className="timeGrid">
                     {hours.map(h => {
                       const st = statusOf(date, h)
-                      const style =
-                        st === 'free'     ? timeBtnFree :
-                        st === 'reserved' ? timeBtnReserved :
-                                            timeBtnClosed
+                      const cls = st === 'free' ? 'free' : st === 'reserved' ? 'reserved' : 'closed'
                       return (
-                        <button
-                          key={h}
-                          onClick={() => toggleSlotClosed(date, h)}
-                          style={style}
-                          title={`${trDate(date)} ${h} — ${nextHour(h)}`}
-                        >
+                        <button key={h} onClick={() => toggleSlotClosed(date, h)} className={`slotBtn ${cls}`} title={`${trDate(date)} ${h} — ${nextHour(h)}`}>
                           {h} — {nextHour(h)}
                         </button>
                       )
@@ -316,35 +288,73 @@ export default function AdminCalendarPage() {
           })}
         </section>
       </main>
+
+      <style jsx>{`
+        :root { --fg:#000; --bg:#fff; --br:#e5e5e5; --muted:#666; --primary:#007b55; --ok:#0a7 }
+        .page { background: var(--bg); color: var(--fg); min-height: 100dvh; display:flex; flex-direction: column; font-family: Arial, sans-serif }
+        .hdr { position: sticky; top: 0; z-index: 20; border-bottom:1px solid #e5e5e5; padding: 12px 16px; display:flex; align-items:center; justify-content: space-between; background: var(--bg) }
+        .brand { font-size: 18px; font-weight: 700 }
+        .controls { display:flex; align-items:center; gap: 8px; flex-wrap: wrap }
+        .dateLabel { display:flex; align-items:center; gap: 8px; font-size: 14px }
+        .dateInput { padding: 8px 10px; border:1px solid #ddd; border-radius: 10px; font-size: 14px }
+        .btn { padding: 8px 12px; border-radius: 10px; border:1px solid #ddd; background:#eee; cursor:pointer; white-space: nowrap }
+        .btn.ghost { background:#fff }
+
+        .container { width: 100%; margin: 0 auto; padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch }
+        .title { margin: 0 0 10px; color: var(--primary); text-align: center; font-size: 1.25rem }
+        .legendRow { display:flex; align-items:center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px }
+        .ok { color: var(--ok); margin: 8px 0 }
+        .err { color: crimson; margin: 8px 0 }
+
+        .days { display: grid; gap: 12px; margin-top: 8px }
+        .dayCard { border:1px solid #cfcfcf; border-radius: 12px; padding: 12px; background:#fafafa }
+        .dayHead { display:flex; justify-content: space-between; align-items:center; gap: 8px; margin-bottom: 8px }
+        .dayTitle { font-weight: 700 }
+        .chkAll { display:flex; align-items:center; gap: 6px; font-size: 14px }
+        .empty { font-size: 13px; color:#777 }
+
+        .timeGrid { display:grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) }
+        .slotBtn { border-radius: 14px; padding: 12px 14px; font-weight: 600; font-size: 16px; line-height: 1.2; cursor:pointer; border:1px solid transparent; background:#fff; text-align:center; -webkit-tap-highlight-color: transparent }
+        .slotBtn.free { border-color:#2e7d32; color:#2e7d32 }
+        .slotBtn.closed { border-color:#9e9e9e; color:#9e9e9e; background:#f1f1f1 }
+        .slotBtn.reserved { border-color:#c62828; color:#fff; background:#c62828 }
+
+        /* ===== Mobil iyileştirmeler ===== */
+        @media (max-width: 480px) {
+          .hdr { padding: 10px 12px }
+          .brand { font-size: 16px }
+          .controls { width: 100% }
+          .dateLabel { width: 100%; justify-content: space-between }
+          .dateInput { width: 100%; font-size: 16px }
+          .btn { width: 100%; font-size: 16px }
+
+          .container { padding: 12px 12px 16px }
+          .title { font-size: 1.1rem }
+          .dayCard { padding: 12px }
+          .dayHead { flex-direction: column; align-items: flex-start }
+          .timeGrid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) }
+          .slotBtn { padding: 12px; font-size: 15px }
+        }
+
+        /* Tablet */
+        @media (min-width: 481px) and (max-width: 900px) {
+          .timeGrid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) }
+        }
+
+        /* Desktop geniş */
+        @media (min-width: 1200px) {
+          .container { padding: 20px 32px }
+          .timeGrid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) }
+        }
+      `}</style>
     </div>
   )
 }
 
-/* ====== Styles ====== */
-// Tam ekran + sütun; main alanı scroll yapacak
-const pageStyle  = { background:'#fff', color:'#000', height:'100vh', display:'flex', flexDirection:'column', fontFamily:'Arial, sans-serif' }
-const headerStyle= { borderBottom:'1px solid #e5e5e5', padding:'12px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }
-const brandStyle = { fontSize:20, fontWeight:'bold' }
-const dateInput  = { marginLeft:8, padding:'6px 10px', border:'1px solid #ddd', borderRadius:8 }
-const btnGhost   = { background:'#eee', border:'1px solid #ddd', borderRadius:8, padding:'6px 10px', cursor:'pointer' }
-
-// SCROLLABLE container: kalan alanı kapla + overflowY
-const container  = { width:'100%', maxWidth:'unset', margin:'0 auto', padding:'20px 32px', flex: 1, overflowY: 'auto' }
-const h1Style    = { margin:'0 0 12px 0', color:'#007b55', textAlign:'center' }
-
-const legendRow  = { display:'flex', alignItems:'center', gap:16, marginBottom:8 }
+/* ====== Styles (JS objeleri sadece export için istenirse) ====== */
 const Legend = ({ color, label }) => (
   <div style={{ display:'flex', alignItems:'center', gap:6 }}>
     <span style={{ width:14, height:14, background:color, borderRadius:4, display:'inline-block', opacity:0.9 }} />
     <span style={{ fontSize:13, color:'#444' }}>{label}</span>
   </div>
 )
-
-const dayCard   = { border:'1px solid #cfcfcf', borderRadius:12, padding:16, background:'#fafafa' }
-const dayHead   = { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }
-const timeGrid  = { display:'grid', gap:14, gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))' }
-
-const baseBtn        = { borderRadius:14, padding:'14px 16px', fontWeight:600, fontSize:17, lineHeight:1.2, cursor:'pointer', border:'1px solid transparent', background:'#fff', minWidth:240, textAlign:'center' }
-const timeBtnFree    = { ...baseBtn, borderColor:'#2e7d32', color:'#2e7d32' }
-const timeBtnClosed  = { ...baseBtn, borderColor:'#9e9e9e', color:'#9e9e9e', background:'#f1f1f1' }
-const timeBtnReserved= { ...baseBtn, borderColor:'#c62828', color:'#fff', background:'#c62828' }

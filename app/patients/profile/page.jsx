@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-/* Telefon biçimlendirme */
+/* Telefon biçimlendirme (ileride lazım olabilir) */
 const onlyDigits = (s='') => (s.match(/\d/g) || []).join('')
 const toNational10 = (raw='') => {
   const d = onlyDigits(raw)
@@ -23,6 +23,8 @@ export default function ProfilePage() {
   const [phoneNat10, setPhoneNat10] = useState('')
   const [password,  setPassword]  = useState('')
   const [password2, setPassword2] = useState('')
+  const [showPw1, setShowPw1] = useState(false)
+  const [showPw2, setShowPw2] = useState(false)
 
   const fullName = `${firstName}`.trim() + (lastName ? ` ${lastName}` : '')
 
@@ -32,7 +34,6 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return router.replace('/login')
 
-      // Profil bilgilerini oku
       const { data: prof } = await supabase
         .from('profiles')
         .select('first_name, last_name')
@@ -41,7 +42,7 @@ export default function ProfilePage() {
 
       const f = prof?.first_name ?? user.user_metadata?.first_name ?? ''
       const l = prof?.last_name  ?? user.user_metadata?.last_name  ?? ''
-      const p = user.phone || '' // doğrudan auth.users.phone
+      const p = user.phone || '' // auth.users.phone
 
       setFirstName(f)
       setLastName(l)
@@ -71,16 +72,17 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Oturum bulunamadı')
 
-      // Şifre veya metadata güncelle
       const upd = {
         data: { first_name: firstName, last_name: lastName, full_name: fullName }
       }
       if (password) upd.password = password
+
       const { error } = await supabase.auth.updateUser(upd)
       if (error) throw error
 
       setMsg('Bilgileriniz güncellendi ✅')
       setPassword(''); setPassword2('')
+      setShowPw1(false); setShowPw2(false)
     } catch (e) {
       setErr(e.message || String(e))
     } finally {
@@ -88,69 +90,254 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) return <main style={{ padding: 16 }}>Yükleniyor…</main>
+  if (loading) return <main className="pf-wrap" style={{ padding: 16 }}>Yükleniyor…</main>
 
   return (
-    <main style={{ maxWidth: 640, margin: '24px auto', padding: '0 16px' }}>
-      <h2 style={{ borderBottom: '2px solid #007b55', paddingBottom: 6 }}>
-        Bilgilerimi Görüntüle / Güncelle
-      </h2>
+    <main className="pf-wrap">
+      <h2 className="pf-title">Bilgilerimi Görüntüle / Güncelle</h2>
 
-      {msg && <div style={{ marginTop: 12, color: '#0a7' }}>{msg}</div>}
-      {err && <div style={{ marginTop: 12, color: 'crimson' }}>Hata: {err}</div>}
+      {msg && (
+        <div className="pf-alert pf-alert-ok" role="status" aria-live="polite">
+          {msg}
+        </div>
+      )}
+      {err && (
+        <div className="pf-alert pf-alert-err" role="alert" aria-live="assertive">
+          Hata: {err}
+        </div>
+      )}
 
-      <form onSubmit={onSubmit} style={{ marginTop: 16, display: 'grid', gap: 14 }}>
+      <form onSubmit={onSubmit} className="pf-form">
         <Field label="İsim">
-          <input value={firstName} disabled readOnly style={{ ...input, background:'#f7f7f7', color:'#555' }} />
+          <input
+            value={firstName}
+            disabled
+            readOnly
+            className="pf-input pf-input-readonly"
+            inputMode="text"
+            autoComplete="given-name"
+          />
         </Field>
 
         <Field label="Soyisim">
-          <input value={lastName} disabled readOnly style={{ ...input, background:'#f7f7f7', color:'#555' }} />
+          <input
+            value={lastName}
+            disabled
+            readOnly
+            className="pf-input pf-input-readonly"
+            inputMode="text"
+            autoComplete="family-name"
+          />
         </Field>
 
         <Field label="Telefon Numarası">
-          <div style={{ display:'grid', gridTemplateColumns:'minmax(72px,auto) 1fr', gap:8 }}>
-            <input value="+90" disabled readOnly style={{ ...input, width:88, textAlign:'center', background:'#f7f7f7', color:'#555' }} />
+          <div className="pf-phone-grid">
+            <input value="+90" disabled readOnly className="pf-input pf-input-readonly pf-cc" />
             <input
               value={phoneNat10}
               readOnly
               disabled
-              style={{ ...input, background:'#f7f7f7', color:'#555' }}
+              className="pf-input pf-input-readonly"
+              inputMode="numeric"
+              autoComplete="tel"
             />
           </div>
-          <small style={{ color:'#666' }}>Telefon numaranızı değiştirmek için yetkilinize başvurun.</small>
+          <small className="pf-muted">Telefon numaranızı değiştirmek için yetkilinize başvurun.</small>
         </Field>
 
-        <div style={{ marginTop: 8, fontWeight: 700, color: '#007b55' }}>Şifreyi Değiştir (opsiyonel)</div>
+        <div className="pf-section">Şifreyi Değiştir (opsiyonel)</div>
+
         <Field label="Yeni Şifre">
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Yeni şifre" style={input} />
-        </Field>
-        <Field label="Yeni Şifre (Tekrar)">
-          <input type="password" value={password2} onChange={e => setPassword2(e.target.value)} placeholder="Yeni şifre tekrar" style={input} />
+          <div className="pf-password">
+            <input
+              type={showPw1 ? 'text' : 'password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Yeni şifre"
+              className="pf-input"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw1(v => !v)}
+              className="pf-eye"
+              aria-label={showPw1 ? 'Şifreyi gizle' : 'Şifreyi göster'}
+            >{showPw1 ? '🙈' : '👁️'}</button>
+          </div>
         </Field>
 
-        <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-          <button type="submit" disabled={saving} style={btnPrimary}>
+        <Field label="Yeni Şifre (Tekrar)">
+          <div className="pf-password">
+            <input
+              type={showPw2 ? 'text' : 'password'}
+              value={password2}
+              onChange={e => setPassword2(e.target.value)}
+              placeholder="Yeni şifre tekrar"
+              className="pf-input"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw2(v => !v)}
+              className="pf-eye"
+              aria-label={showPw2 ? 'Şifreyi gizle' : 'Şifreyi göster'}
+            >{showPw2 ? '🙈' : '👁️'}</button>
+          </div>
+        </Field>
+
+        <div className="pf-actions">
+          <button type="submit" disabled={saving} className="pf-btn pf-btn-primary">
             {saving ? 'Kaydediliyor…' : 'Kaydet'}
           </button>
-          <button type="button" disabled={saving} onClick={() => router.back()} style={btnGhost}>
+          <button type="button" disabled={saving} onClick={() => router.back()} className="pf-btn pf-btn-ghost">
             Geri Dön
           </button>
         </div>
       </form>
+
+      {/* ===== Responsive Styles ===== */}
+      <style jsx global>{`
+        :root {
+          --pf-green: #007b55;
+          --pf-border: #ddd;
+          --pf-muted: #666;
+        }
+
+        .pf-wrap {
+          max-width: 640px;
+          margin: 16px auto;
+          padding: 0 12px;
+          font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+          color: #111;
+          background: #fff;
+        }
+
+        .pf-title {
+          border-bottom: 2px solid var(--pf-green);
+          padding-bottom: 6px;
+          margin: 0 0 12px 0;
+          font-size: 20px;
+          text-wrap: balance;
+        }
+
+        .pf-alert {
+          margin-top: 12px;
+          padding: 12px;
+          border-radius: 10px;
+          border: 1px solid transparent;
+          font-size: 14px;
+        }
+        .pf-alert-ok  { color: #0a7; background:#e9fbf6; border-color:#b8efe3; }
+        .pf-alert-err { color: crimson; background:#ffeaea; border-color:#ffcccc; }
+
+        .pf-form {
+          margin-top: 16px;
+          display: grid;
+          gap: 14px;
+        }
+
+        .pf-field { display: grid; gap: 6px; }
+        .pf-label { font-size: 14px; }
+
+        .pf-input {
+          padding: 12px;
+          border: 1px solid var(--pf-border);
+          border-radius: 10px;
+          outline: none;
+          min-height: 44px;          /* dokunma alanı */
+          font-size: 15px;
+          background: #fff;
+        }
+        .pf-input:focus { border-color: var(--pf-green); box-shadow: 0 0 0 3px rgba(0,123,85,.12); }
+        .pf-input-readonly { background:#f7f7f7; color:#555; }
+
+        .pf-muted { color: var(--pf-muted); font-size: 12px; margin-top: 6px; }
+
+        .pf-phone-grid {
+          display: grid;
+          grid-template-columns: minmax(78px,auto) 1fr;
+          gap: 8px;
+          align-items: center;
+        }
+        .pf-cc { width: 88px; text-align: center; }
+
+        .pf-section {
+          margin-top: 4px;
+          font-weight: 800;
+          color: var(--pf-green);
+        }
+
+        .pf-password { position: relative; }
+        .pf-eye {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-size: 18px;
+          line-height: 1;
+          padding: 4px 6px;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .pf-actions {
+          display: flex;
+          gap: 12px;
+          margin-top: 6px;
+          flex-wrap: wrap;
+        }
+
+        .pf-btn {
+          border-radius: 10px;
+          padding: 12px 14px;
+          min-height: 44px;
+          font-weight: 700;
+          cursor: pointer;
+          border: 1px solid var(--pf-border);
+          background: #fff;
+          user-select: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .pf-btn[disabled] { opacity: .6; cursor: not-allowed; }
+        .pf-btn-primary {
+          background: var(--pf-green);
+          color: #fff;
+          border-color: var(--pf-green);
+        }
+        .pf-btn-ghost {
+          background: #fff;
+          color: #333;
+        }
+
+        /* ===== Breakpoints ===== */
+        /* < 480px: tam genişlik, stacked butonlar */
+        @media (max-width: 479px) {
+          .pf-title { font-size: 18px; }
+          .pf-actions .pf-btn { flex: 1 1 100%; }   /* butonlar alt alta tam genişlik */
+          .pf-input { font-size: 16px; }           /* iOS zoom'u önlemek için 16px+ */
+        }
+
+        /* 480–767px: hafif ferahlık */
+        @media (min-width: 480px) and (max-width: 767px) {
+          .pf-actions .pf-btn { flex: 1 1 auto; }
+        }
+
+        /* >=768px: masaüstü */
+        @media (min-width: 768px) {
+          .pf-title { font-size: 22px; }
+        }
+      `}</style>
     </main>
   )
 }
 
 function Field({ label, children }) {
   return (
-    <label style={{ display: 'grid', gap: 6 }}>
-      <span style={{ fontSize: 14 }}>{label}</span>
+    <label className="pf-field">
+      <span className="pf-label">{label}</span>
       {children}
     </label>
   )
 }
-
-const input = { padding: '10px 12px', border: '1px solid #ccc', borderRadius: 8, outline: 'none' }
-const btnPrimary = { background: '#007b55', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }
-const btnGhost   = { background: '#fff', color: '#333', border: '1px solid #ccc', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }

@@ -39,15 +39,8 @@ export default function UpcomingPage() {
     if (msgTimerRef.current) clearTimeout(msgTimerRef.current)
     msgTimerRef.current = setTimeout(() => setMsg(''), MESSAGE_TTL_MS)
   }
-  const showMsg = (text) => {
-    setMsg(text)
-    startMsgTimer()
-  }
-  const showErr = (text) => {
-    setErr(text)
-    // hata için istersen auto-dismiss de ekleyebilirsin:
-    // startMsgTimer()
-  }
+  const showMsg = (text) => { setMsg(text); startMsgTimer() }
+  const showErr = (text) => { setErr(text) }
   useEffect(() => () => { if (msgTimerRef.current) clearTimeout(msgTimerRef.current) }, [])
 
   useEffect(() => {
@@ -70,7 +63,7 @@ export default function UpcomingPage() {
 
   const load = async (userId) => {
     try {
-      setLoading(true); setErr(''); // msg'i silmiyoruz
+      setLoading(true); setErr('')
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -107,8 +100,6 @@ export default function UpcomingPage() {
       if (error) throw error
       if (!data?.ok) throw new Error(data?.message || 'İptal edilemedi')
 
-      // Sunucudan gelen mesaja göre göster
-      // Örn: data.refunded === true/false ve/veya data.message içinde “24 saatten az/çok” açıklaması
       if (data?.message) {
         showMsg(data.message)
       } else {
@@ -118,7 +109,6 @@ export default function UpcomingPage() {
         )
       }
 
-      // Listeyi tazele
       const { data:{ user } } = await supabase.auth.getUser()
       if (user?.id) await load(user.id)
     } catch (e) {
@@ -138,77 +128,54 @@ export default function UpcomingPage() {
     }
     const s = map[status] || { text: status, color:'#555', bg:'#eee', border:'#bbb' }
     return (
-      <span style={{
-        color:s.color, background:s.bg, border:`1px solid ${s.border}`,
-        padding:'4px 8px', borderRadius:8, fontSize:12, fontWeight:700
-      }}>
+      <span className="up-badge" style={{ color:s.color, background:s.bg, borderColor:s.border }}>
         {s.text}
       </span>
     )
   }
 
-  if (loading) return <main style={{ padding:16 }}>Yükleniyor…</main>
+  if (loading) return <main className="up-wrap" style={{ padding:16 }}>Yükleniyor…</main>
 
   return (
-    <main style={{ maxWidth:860, margin:'24px auto', padding:'0 16px', fontFamily:'Arial, sans-serif' }}>
-      <h2 style={{ borderBottom:'2px solid #007b55', paddingBottom:6 }}>
-        Randevularım
-      </h2>
+    <main className="up-wrap">
+      <h2 className="up-title">Randevularım</h2>
 
       {/* Dismissible mesaj kutuları */}
       {msg && (
-        <div style={{ position:'relative', color:'#0a7', background:'#e9fbf6', border:'1px solid #b8efe3', padding:'10px 36px 10px 12px', borderRadius:8, marginTop:8 }}>
+        <div className="up-alert up-alert-ok" role="status" aria-live="polite">
           {msg}
-          <button
-            onClick={() => setMsg('')}
-            title="Kapat"
-            style={{ position:'absolute', right:8, top:6, border:'none', background:'transparent', cursor:'pointer', fontSize:18, lineHeight:1 }}
-          >
-            ×
-          </button>
+          <button onClick={() => setMsg('')} title="Kapat" className="up-alert-close">×</button>
         </div>
       )}
       {err && (
-        <div style={{ position:'relative', color:'crimson', background:'#ffeaea', border:'1px solid #ffcccc', padding:'10px 36px 10px 12px', borderRadius:8, marginTop:8 }}>
+        <div className="up-alert up-alert-err" role="alert" aria-live="assertive">
           Hata: {err}
-          <button
-            onClick={() => setErr('')}
-            title="Kapat"
-            style={{ position:'absolute', right:8, top:6, border:'none', background:'transparent', cursor:'pointer', fontSize:18, lineHeight:1 }}
-          >
-            ×
-          </button>
+          <button onClick={() => setErr('')} title="Kapat" className="up-alert-close">×</button>
         </div>
       )}
 
-      <div className="scroll-vertical" style={{ maxHeight:'70vh', overflowY:'auto', paddingRight:8, marginTop: msg || err ? 8 : 0 }}>
+      <div className="up-scroll" style={{ marginTop: msg || err ? 8 : 0 }}>
         {rows.length === 0 ? (
-          <p>Yaklaşan randevun bulunmuyor.</p>
+          <p className="up-empty">Yaklaşan randevun bulunmuyor.</p>
         ) : (
-          <ul style={{ listStyle:'none', padding:0, display:'grid', gap:12 }}>
+          <ul className="up-list">
             {rows.map(r => (
-              <li key={r.id} style={{ border:'1px solid #e5e5e5', borderRadius:10, padding:14, background:'#fafafa' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-                  <div>
+              <li key={r.id} className="up-card">
+                <div className="up-rowtop">
+                  <div className="up-when">
                     <b>{trLongDate(r.slot?.date)}</b> — {r.slot?.time} ({r.slot?.duration_minutes} dk)
-                    <div style={{ fontSize:13, color:'#666' }}>
+                    <div className="up-created">
                       Oluşturma: {new Date(r.created_at).toLocaleString('tr-TR')}
                     </div>
                   </div>
 
-                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div className="up-actions">
                     {statusBadge(r.status)}
                     {r.status === 'booked' && isFutureLocal(r.slot?.date, r.slot?.time) && (
                       <button
                         onClick={() => cancelBooking(r.id, r.slot)}
                         disabled={busyCancelId === r.id}
-                        style={{
-                          borderWidth:1, borderStyle:'solid', borderColor:'transparent',
-                          background:'#e74c3c', color:'#fff',
-                          padding:'8px 12px', borderRadius:8,
-                          cursor: busyCancelId === r.id ? 'not-allowed' : 'pointer',
-                          fontWeight:700, opacity: busyCancelId === r.id ? 0.6 : 1
-                        }}
+                        className={`up-btn up-btn-danger ${busyCancelId === r.id ? 'up-btn-disabled' : ''}`}
                       >
                         {busyCancelId === r.id ? 'İptal ediliyor…' : 'İptal Et'}
                       </button>
@@ -220,6 +187,143 @@ export default function UpcomingPage() {
           </ul>
         )}
       </div>
+
+      {/* ===== Responsive Styles ===== */}
+      <style jsx global>{`
+        :root {
+          --up-green: #007b55;
+          --up-border: #e5e5e5;
+          --up-muted: #666;
+        }
+
+        .up-wrap {
+          max-width: 860px;
+          margin: 16px auto;
+          padding: 0 12px;
+          font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+          color: #111;
+          background: #fff;
+        }
+
+        .up-title {
+          border-bottom: 2px solid var(--up-green);
+          padding-bottom: 6px;
+          margin: 0 0 12px 0;
+          font-size: 20px;
+          line-height: 1.2;
+          text-wrap: balance;
+        }
+
+        .up-alert {
+          position: relative;
+          border-radius: 10px;
+          margin-top: 8px;
+          padding: 12px 40px 12px 12px;
+          border: 1px solid transparent;
+          font-size: 14px;
+        }
+        .up-alert-ok  { color:#0a7; background:#e9fbf6; border-color:#b8efe3; }
+        .up-alert-err { color:crimson; background:#ffeaea; border-color:#ffcccc; }
+        .up-alert-close {
+          position:absolute; right:10px; top:8px;
+          border:none; background:transparent; cursor:pointer;
+          font-size:20px; line-height:1; -webkit-tap-highlight-color:transparent;
+        }
+
+        .up-empty { color:#444; font-size:15px; padding:6px 0; }
+
+        .up-scroll {
+          max-height: 70vh;
+          overflow-y: auto;
+          padding-right: 6px;
+          -webkit-overflow-scrolling: touch; /* iOS pürüzsüz scroll */
+        }
+
+        .up-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: grid;
+          gap: 12px;
+        }
+
+        .up-card {
+          border: 1px solid var(--up-border);
+          border-radius: 12px;
+          padding: 14px;
+          background: #fafafa;
+        }
+
+        .up-rowtop {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .up-when { font-size: 16px; line-height: 1.4; }
+        .up-created { font-size: 13px; color: var(--up-muted); margin-top: 4px; }
+
+        .up-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          justify-content: flex-end;
+        }
+
+        .up-badge {
+          border: 1px solid;
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 12px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .up-btn {
+          border-radius: 10px;
+          border: 1px solid transparent;
+          padding: 12px 14px;
+          min-height: 44px;            /* dokunma alanı */
+          font-weight: 800;
+          cursor: pointer;
+          user-select: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .up-btn-danger {
+          background: #e74c3c;
+          color: #fff;
+          border-color: #e74c3c;
+        }
+        .up-btn-disabled,
+        .up-btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+        /* ===== Breakpoints ===== */
+        /* < 480px: tek sütun, tam genişlik butonlar */
+        @media (max-width: 479px) {
+          .up-title { font-size: 18px; }
+          .up-card { padding: 12px; }
+          .up-when { font-size: 15px; }
+          .up-badge { font-size: 12px; }
+          .up-actions { gap: 8px; }
+          .up-btn { width: 100%; }     /* iptal butonu tam genişlik */
+          .up-scroll { max-height: 65vh; }
+        }
+
+        /* 480–767px: biraz daha ferah */
+        @media (min-width: 480px) and (max-width: 767px) {
+          .up-btn { min-width: 160px; }
+        }
+
+        /* >=768px: masaüstü */
+        @media (min-width: 768px) {
+          .up-title { font-size: 22px; }
+          .up-card { padding: 16px; }
+          .up-when { font-size: 17px; }
+        }
+      `}</style>
     </main>
   )
 }
