@@ -327,6 +327,10 @@ export default function ProfilePage() {
         /* >=768px: masaüstü */
         @media (min-width: 768px) {
           .pf-title { font-size: 22px; }
+          @media (hover:none) and (pointer:coarse) {
+  :global(body){ overflow:hidden; }
+}
+
         }
       `}</style>
     </main>
