@@ -1004,3 +1004,19 @@ body {
   );                            /* biraz daha transparan */
   z-index: -1;
 }
+/* Mobilde sticky başlık ve sekmeler viewport dışına taşmasın */
+@media (hover:none) and (pointer:coarse){
+  .pl-sticky,
+  .topbar,
+  .pl-mobile-tabs{
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+}
+
+/* Masaüstü güvenlik: mobil sekmeler asla görünmesin */
+@media (hover:hover) and (pointer:fine){
+  .pl-mobile-tabs{ display: none !important; }
+}
