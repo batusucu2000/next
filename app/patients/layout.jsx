@@ -47,11 +47,12 @@ export default function PatientsLayout({ children }) {
 
   return (
     <div className="pl-shell">
-      {/* STICKY ÜST BLOK: TopBar (desktop’ta nav görünsün), mobilde gizlenecek */}
+      {/* STICKY ÜST BLOK */}
       <div className="pl-sticky">
+        {/* Desktop’ta TopBar’ın kendi nav’ı gözükecek */}
         <TopBar title="Danışan Randevu Sistemi" nav={tabs} />
 
-        {/* MOBİL ÖZEL sekmeler: sadece mobilde görünür, desktop’ta gizli */}
+        {/* Mobilde gözükecek olan TEK sekme barı (bizimki) */}
         <nav className="pl-tabs" aria-label="Randevu sekmeleri">
           <div className="pl-tabs-scroll">
             {tabs.map(item => {
@@ -71,7 +72,7 @@ export default function PatientsLayout({ children }) {
         </nav>
       </div>
 
-      {/* TEK SAYFA scroll alanı */}
+      {/* TEK SAYFA SCROLL ALANI */}
       <div className="pl-content">
         <div className="pl-welcome">
           <div className="pl-welcome-text">
@@ -82,6 +83,7 @@ export default function PatientsLayout({ children }) {
       </div>
 
       <style>{`
+        /* KABUK */
         .pl-shell{
           height:100dvh; min-height:100dvh;
           background:#fff; color:#000; font-family:Arial, sans-serif;
@@ -92,7 +94,7 @@ export default function PatientsLayout({ children }) {
           border-bottom:1px solid #eee;
         }
 
-        /* MOBİL ÖZEL sekme çubuğu (bizimki) */
+        /* Varsayılan: bizim sekme kapalı kalsın; sadece media query ile açılacak */
         .pl-tabs { display:none; background:#fff; border-top:1px solid #eee; border-bottom:1px solid #eee; }
         .pl-tabs-scroll{
           display:flex; gap:18px;
@@ -113,7 +115,7 @@ export default function PatientsLayout({ children }) {
         }
         .pl-tab.is-active{ color:#2563eb; border-bottom-color:#2563eb; }
 
-        /* İÇERİK alanı dikey scroll alır */
+        /* İÇERİK alanı scroll */
         .pl-content{
           flex:1; overflow:auto; -webkit-overflow-scrolling:touch;
           max-width:960px; width:100%; margin:0 auto; padding:16px;
@@ -126,15 +128,14 @@ export default function PatientsLayout({ children }) {
         .pl-welcome-text{ font-size:16px; }
         .pl-main{ padding:0; }
 
-        /* ===== Mobil davranışlar ===== */
+        /* ===== Mobil: SADECE bizim sekme görünsün, TopBar nav GİZLİ olsun ===== */
         @media (max-width: 767px){
-          /* TopBar içindeki nav'ı GİZLE (mobilde) */
-          .pl-sticky :where(nav){ display:none !important; }
+          /* TopBar içindeki nav farklı class’ta olabilir; hepsini kapsayalım */
+          .pl-sticky .px-nav,
+          .pl-sticky nav { display:none !important; }
 
-          /* Bizim mobil sekmeyi GÖSTER */
-          .pl-tabs{ display:block; }
+          .pl-tabs { display:block !important; }
 
-          /* İçerik tam genişlik */
           .pl-content{ max-width:none; padding:12px 12px; }
           .pl-welcome{
             flex-direction:column; align-items:flex-start; gap:6px; padding:10px 12px;
@@ -147,11 +148,14 @@ export default function PatientsLayout({ children }) {
           .pl-content .px-days-scroll{ margin-left:0 !important; }
         }
 
-        /* ===== Desktop/tablet: TopBar nav AÇIK, bizim mobil sekme KAPALI ===== */
+        /* ===== Desktop/Tablet: TopBar nav AÇIK, bizim sekme KAPALI ===== */
         @media (min-width: 768px){
-          /* TopBar nav'ı görünür; (TopBar kendi stilini uygulayacaktır) */
-          .pl-sticky :where(nav){ display:flex !important; }
-          .pl-tabs{ display:none; }
+          /* TopBar nav’ı farklı yapıda olabilir; geniş seçicilerle kesin açıyoruz */
+          .pl-sticky .px-nav,
+          .pl-sticky nav { display:flex !important; }
+
+          .pl-tabs { display:none !important; }
+
           .pl-content{ max-width:960px; }
         }
       `}</style>
