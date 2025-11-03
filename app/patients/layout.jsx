@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 import TopBar from '@/components/TopBar'
 
@@ -49,7 +50,6 @@ export default function PatientsLayout({ children }) {
           full = 'Kullanıcı'
         }
       }
-
       setName(full)
     })()
   }, [router])
@@ -60,6 +60,25 @@ export default function PatientsLayout({ children }) {
       style={{ background:'#fff', color:'#000', minHeight:'100vh', fontFamily:'Arial, sans-serif' }}
     >
       <TopBar title="Danışan Randevu Sistemi" nav={nav} />
+
+      {/* Yalnızca mobilde görünen kaydırmalı alt-sekmeler (TopBar'dan bağımsız) */}
+      <div className="pl-mobile-tabs" aria-label="Randevu sekmeleri">
+        <div className="pl-tabs-scroll">
+          {nav.map(item => {
+            const active = pathname?.startsWith(item.href)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`pl-tab ${active ? 'is-active' : ''}`}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Normal sayfalarda ortalanmış; edge-left sayfalarda tam genişlik ve sol padding 0 */}
       <div
@@ -86,23 +105,55 @@ export default function PatientsLayout({ children }) {
         </main>
       </div>
 
-      {/* Düz <style>: styled-jsx değil; hash eklenmez */}
+      {/* Styles */}
       <style>{`
         .pl-wrap { -webkit-overflow-scrolling: touch; }
 
-        /* ====== EDGE-LEFT OVERRIDES ====== */
+        /* EDGE-LEFT OVERRIDES */
         .pl-container.edge-left { padding-left: 0 !important; }
         .pl-main.edge-left { padding-left: 0 !important; }
-
-        /* Çocuk booking sayfasındaki sol boşlukları da kaldır (senin .px- sınıfların) */
         .pl-container.edge-left .px-container { padding-left: 0 !important; }
         .pl-container.edge-left .px-page     { width: 100% !important; }
-        .pl-container.edge-left .px-days-scroll {
-          margin-left: 0 !important;
+        .pl-container.edge-left .px-days-scroll { margin-left: 0 !important; }
+
+        /* ==== MOBİL TABS (yatay kaydırma) ==== */
+        .pl-mobile-tabs {
+          display: none;           /* desktop'ta gizli */
+          border-top: 1px solid #eee;
+          border-bottom: 1px solid #eee;
+          background: #fff;
+        }
+        .pl-tabs-scroll {
+          display: flex;
+          gap: 18px;
+          overflow-x: auto;
+          overscroll-behavior-inline: contain;
+          white-space: nowrap;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          padding: 10px 14px;
+          scroll-snap-type: x proximity;
+          mask-image: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,1) 20px, rgba(0,0,0,1) calc(100% - 20px), rgba(0,0,0,0));
+        }
+        .pl-tabs-scroll::-webkit-scrollbar { height: 6px; }
+        .pl-tabs-scroll::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 999px; }
+
+        .pl-tab {
+          text-decoration: none;
+          color: #111;
+          font-weight: 600;
+          padding: 8px 0;
+          border-bottom: 2px solid transparent;
+          scroll-snap-align: start;
+        }
+        .pl-tab.is-active {
+          color: #2563eb;
+          border-bottom-color: #2563eb;
         }
 
         /* ====== Responsive ====== */
         @media (max-width: 479px) {
+          .pl-mobile-tabs { display: block; } /* mobilde göster */
           .pl-container:not(.edge-left) {
             margin: 16px auto;
             padding: 0 12px;
@@ -118,7 +169,6 @@ export default function PatientsLayout({ children }) {
             line-height: 1.35;
             word-break: break-word;
           }
-          /* Mobilde edge-left: kenardan kenara */
           .pl-container.edge-left { padding-right: 10px; }
         }
 
