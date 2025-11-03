@@ -17,26 +17,19 @@ export default function TopBar({ title = 'Hasta Randevu Sistemi', nav = [] }) {
     pathname === href ? { borderBottom: '2px solid #007b55' } : {}
 
   return (
-    <header className="topbar"
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px 16px',           // mobilde taşmayı azaltmak için 16px
-        borderBottom: '1px solid #ccc',
-        background: '#fff',
-        color: '#000',
-        fontFamily: 'Arial, sans-serif',
-        width: '100%',
-        maxWidth: '100vw',              // viewport’u aşma
-        boxSizing: 'border-box',
-        overflow: 'hidden'
-      }}
-    >
-      <div style={{ fontSize: 18, fontWeight: 'bold', whiteSpace: 'nowrap' }}>{title}</div>
+    <header style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '12px 32px',
+      borderBottom: '1px solid #ccc',
+      background: '#fff',
+      color: '#000',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <div style={{ fontSize: 20, fontWeight: 'bold' }}>{title}</div>
 
-      {/* !! ÖNEMLİ: className="topbar-nav" */}
-      <nav className="topbar-nav" style={{ display: 'flex', gap: 16, fontSize: 14 }}>
+      <nav style={{ display: 'flex', gap: 20, fontSize: 15 }}>
         {nav.map(item => (
           <Link
             key={item.href}
@@ -54,22 +47,14 @@ export default function TopBar({ title = 'Hasta Randevu Sistemi', nav = [] }) {
           backgroundColor: '#e74c3c',
           color: 'white',
           border: 'none',
-          padding: '8px 12px',
+          padding: '8px 16px',
           borderRadius: 6,
           cursor: 'pointer',
-          fontFamily: 'inherit',
-          whiteSpace: 'nowrap'
+          fontFamily: 'inherit'
         }}
       >
         Çıkış Yap
       </button>
-
-      {/* Mobilde TopBar menüsünü gizle (çift menü biter) */}
-      <style jsx>{`
-        @media (hover: none) and (pointer: coarse) {
-          .topbar-nav { display: none !important; }
-        }
-      `}</style>
     </header>
   )
 }
