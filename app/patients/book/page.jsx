@@ -384,10 +384,32 @@ export default function BookPage() {
   }
 
   /* === Sadece dokunmatik cihazlar: tek sayfa akışı & body overflow kapama === */
-  @media (hover:none) and (pointer:coarse) {
-    body{ overflow:hidden; }
-    .px-days-scroll{ max-width: 100%; }
+  @media (hover:none) and (pointer:coarse){
+  /* Sayfa genelinde aşağı kaydırma açık olsun */
+  html, body{
+    height: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
+
+  /* İç kabuk: içerik uzadıkça sayfa da uzasın */
+  .px-page{
+    height: auto;          /* 100dvh yerine auto */
+    min-height: 100dvh;    /* ilk ekranda tam görünüm */
+  }
+
+  /* İç konteyner ayrı scroll yapmasın, sayfayla birlikte aksın */
+  .px-container{
+    overflow: visible;     /* önceki overflow:hidden’ı iptal */
+  }
+
+  /* Slotlar bölümü de sayfayla beraber uzasın (iç scroll kapalı) */
+  .px-days-scroll{
+    max-height: none;      /* 60dvh sınırını kaldır */
+    overflow: visible;     /* istersen auto bırakabilirsin, tek scroll için visible */
+  }
+}
+
 `}</style>
 
     </div>
