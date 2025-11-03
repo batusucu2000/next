@@ -283,153 +283,113 @@ export default function BookPage() {
 
       {/* ---- Styles ---- */}
       <style jsx global>{`
-        :root{
-          --slots-max-h: 60dvh;
-          --slots-max-w: 1580px;          /* Slot alanı azami genişlik (sola hizalı) */
-          --slot-min: 420px;              /* Slot butonu min genişlik */
-          --px-green:#2e7d32; --px-red:#c62828; --px-muted:#666;
-          --safe-bottom: env(safe-area-inset-bottom, 16px);
-        }
+  :root{
+    --slots-max-h: 60dvh;
+    --slots-max-w: 1580px;
+    --slot-min: 420px;
+    --px-green:#2e7d32; --px-red:#c62828; --px-muted:#666;
+    --safe-bottom: env(safe-area-inset-bottom, 16px);
+  }
 
-        *,*::before,*::after{ box-sizing:border-box }
-        html,body{ height:100% }
-        body{ margin:0; overflow:hidden }
+  *,*::before,*::after{ box-sizing:border-box }
+  html,body{ height:100% }
+  /* body overflow HEP kapalı olmasın — sadece touch’ta kapatacağız */
+  body{ margin:0; }
 
-        .px-page{
-          width:100%;                     /* 200% KALDIRILDI */
-          height:100dvh;
-          display:flex; flex-direction:column; min-height:0;
-          background:#fff; color:#000;
-          font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-        }
+  .px-page{
+    width:100%;
+    height:100dvh;
+    display:flex; flex-direction:column; min-height:0;
+    background:#fff; color:#000;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
 
-        .px-header{
-          position:sticky; top:0; z-index:10; background:#fff;
-          border-bottom:1px solid #e5e5e5;
-          padding:12px 20px 12px 0;       /* Sol padding 0, tamamen sola */
-          display:flex; align-items:center; justify-content:flex-end;
-          flex:0 0 auto;
-        }
-        .px-credits{ font-weight:700; font-size:14px }
-        .px-credits span{ color:#007b55 }
+  .px-header{
+    position:sticky; top:0; z-index:10; background:#fff;
+    border-bottom:1px solid #e5e5e5;
+    padding:12px 20px 12px 0;
+    display:flex; align-items:center; justify-content:flex-end;
+    flex:0 0 auto;
+  }
+  .px-credits{ font-weight:700; font-size:14px }
+  .px-credits span{ color:#007b55 }
 
-        .px-container{
-          max-width:none;
-          width:100%;
-          margin:10px 0 12px 0;
-          padding:0 20px 0 0;             /* Sol 0: en soldan başlar */
-          display:flex; flex-direction:column; gap:8px;
-          flex:1 1 auto; min-height:0;
-          overflow:hidden; overflow-x:hidden;
-        }
+  .px-container{
+    max-width:none; width:100%;
+    margin:10px 0 12px 0;
+    padding:0 20px 0 0;
+    display:flex; flex-direction:column; gap:8px;
+    flex:1 1 auto; min-height:0;
+    overflow:hidden; overflow-x:hidden;
+  }
 
-        .px-legend-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; flex:0 0 auto }
-        .px-rules{ font-size:14px; color:#555; line-height:1.35; margin:0; flex:0 0 auto }
+  .px-legend-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; flex:0 0 auto }
+  .px-rules{ font-size:14px; color:#555; line-height:1.35; margin:0; flex:0 0 auto }
 
-        .px-days-scroll{
-          flex:0 0 auto;
-          width:100%;
-          max-width: var(--slots-max-w);
-          margin-left: 0;                  /* SOLA YAPIŞ */
-          margin-right: auto;              /* sağa doğru boşluk */
-          max-height: var(--slots-max-h);
-          overflow:auto; overflow-x:hidden;
-          border:1px solid #eee; border-radius:12px;
-          padding:12px; padding-bottom:calc(12px + var(--safe-bottom));
-          background:#fff; -webkit-overflow-scrolling:touch;
-          overscroll-behavior:contain; scrollbar-gutter:stable both-edges;
-        }
+  .px-days-scroll{
+    flex:0 0 auto; width:100%;
+    max-width: var(--slots-max-w);
+    margin-left: 0; margin-right: auto;
+    max-height: var(--slots-max-h);
+    overflow:auto; overflow-x:hidden;
+    border:1px solid #eee; border-radius:12px;
+    padding:12px; padding-bottom:calc(12px + var(--safe-bottom));
+    background:#fff; -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain; scrollbar-gutter:stable both-edges;
+  }
 
-        .px-days-grid{ display:grid; gap:16px; grid-template-columns: 1fr; }
-        .px-day-card{ border:1px solid #cfcfcf; border-radius:12px; padding:16px; background:#fafafa }
-        .px-day-title{ font-weight:700; margin-bottom:10px; font-size:15px }
+  .px-days-grid{ display:grid; gap:16px; grid-template-columns: 1fr; }
+  .px-day-card{ border:1px solid #cfcfcf; border-radius:12px; padding:16px; background:#fafafa }
+  .px-day-title{ font-weight:700; margin-bottom:10px; font-size:15px }
 
-        .px-time-grid{
-          display:grid; gap:12px;
-          grid-template-columns: repeat(auto-fit, minmax(var(--slot-min), 1fr));
-        }
-        .px-time-btn{
-          border-radius:12px; padding:14px; min-height:48px; font-weight:700; font-size:16px;
-          border:1px solid transparent; background:#fff; display:flex; align-items:center; justify-content:center;
-          user-select:none; -webkit-tap-highlight-color:transparent; cursor:pointer;
-        }
-        .px-time-free{ border-color:var(--px-green); color:var(--px-green) }
-        .px-time-closed{ border-color:#9e9e9e; color:#9e9e9e; cursor:not-allowed; background:#f1f1f1 }
-        .px-time-reserved{ border-color:var(--px-red); color:#fff; background: var(--px-red); cursor:not-allowed }
-        .px-time-free:active{ transform:scale(0.98) }
-        .px-slot-hour{ font-variant-numeric: tabular-nums }
-        .px-slot-dash{ opacity:.8 }
+  .px-time-grid{
+    display:grid; gap:12px;
+    grid-template-columns: repeat(auto-fit, minmax(var(--slot-min), 1fr));
+  }
+  .px-time-btn{
+    border-radius:12px; padding:14px; min-height:48px; font-weight:700; font-size:16px;
+    border:1px solid transparent; background:#fff; display:flex; align-items:center; justify-content:center;
+    user-select:none; -webkit-tap-highlight-color:transparent; cursor:pointer;
+  }
+  .px-time-free{ border-color:var(--px-green); color:var(--px-green) }
+  .px-time-closed{ border-color:#9e9e9e; color:#9e9e9e; cursor:not-allowed; background:#f1f1f1 }
+  .px-time-reserved{ border-color:var(--px-red); color:#fff; background: var(--px-red); cursor:not-allowed }
+  .px-time-free:active{ transform:scale(0.98) }
+  .px-slot-hour{ font-variant-numeric: tabular-nums }
+  .px-slot-dash{ opacity:.8 }
 
-        /* ===== Toast ===== */
-        .px-toast-wrap{
-          position: fixed;
-          top: 14px;
-          right: 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          z-index: 9999;
-          pointer-events: none;
-        }
-        .px-toast{
-          pointer-events: auto;
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          align-items: center;
-          gap: 10px;
-          min-width: 280px;
-          max-width: min(92vw, 520px);
-          padding: 12px 12px;
-          border: 1px solid;
-          border-radius: 12px;
-          box-shadow: 0 8px 24px rgba(0,0,0,.08);
-          background: #fff;
-          animation: px-toast-in .18s ease-out both;
-        }
-        @keyframes px-toast-in{
-          from { opacity: 0; transform: translateY(-6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .px-toast-success{ border-color:#c7f2df; background:#e9fbf6; }
-        .px-toast-error  { border-color:#ffd1d1; background:#ffecec; }
-        .px-toast-info   { border-color:#cfe3ff; background:#f1f6ff; }
+  /* Toast */
+  .px-toast-wrap{ position: fixed; top: 14px; right: 14px; display:flex; flex-direction:column; gap:10px; z-index:9999; pointer-events:none; }
+  .px-toast{ pointer-events:auto; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px;
+    min-width:280px; max-width:min(92vw,520px); padding:12px; border:1px solid; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.08); background:#fff; animation: px-toast-in .18s ease-out both; }
+  @keyframes px-toast-in{ from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }
+  .px-toast-success{ border-color:#c7f2df; background:#e9fbf6; }
+  .px-toast-error{ border-color:#ffd1d1; background:#ffecec; }
+  .px-toast-info{ border-color:#cfe3ff; background:#f1f6ff; }
+  .px-toast-icon{ width:22px; height:22px; display:grid; place-items:center; font-size:18px; }
+  .px-toast-text{ font-size:14px; color:#222; line-height:1.35; white-space:pre-wrap; }
+  .px-toast-close{ border:none; background:transparent; cursor:pointer; font-size:18px; line-height:1; padding:4px 6px; color:#444; border-radius:6px; }
+  .px-toast-close:hover{ background: rgba(0,0,0,.06); }
+  .px-spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(0,0,0,.15); border-top-color: rgba(0,0,0,.6); display:inline-block; }
+  .px-spinner.spin{ animation: px-spin 0.8s linear infinite; }
+  @keyframes px-spin{ to { transform: rotate(360deg); } }
 
-        .px-toast-icon{
-          width: 22px; height: 22px;
-          display: grid; place-items: center;
-          font-size: 18px;
-        }
-        .px-toast-text{
-          font-size: 14px;
-          color: #222;
-          line-height: 1.35;
-          white-space: pre-wrap;
-        }
-        .px-toast-close{
-          border: none; background: transparent; cursor: pointer;
-          font-size: 18px; line-height: 1; padding: 4px 6px; color:#444;
-          border-radius: 6px;
-        }
-        .px-toast-close:hover{ background: rgba(0,0,0,.06); }
+  /* Küçük ekran genişlik kırılımı (isteğe bağlı) */
+  @media (max-width: 479px){
+    .px-credits{ font-size:13px }
+    .px-day-card{ padding:12px }
+    .px-day-title{ font-size:13px }
+    .px-time-grid{ grid-template-columns: 1fr; }
+    .px-time-btn{ font-size:15px; min-height:48px }
+  }
 
-        .px-spinner{
-          width: 16px; height: 16px; border-radius: 50%;
-          border: 2px solid rgba(0,0,0,.15);
-          border-top-color: rgba(0,0,0,.6);
-          display: inline-block;
-        }
-        .px-spinner.spin{ animation: px-spin 0.8s linear infinite; }
-        @keyframes px-spin{ to { transform: rotate(360deg); } }
+  /* === Sadece dokunmatik cihazlar: tek sayfa akışı & body overflow kapama === */
+  @media (hover:none) and (pointer:coarse) {
+    body{ overflow:hidden; }
+    .px-days-scroll{ max-width: 100%; }
+  }
+`}</style>
 
-        /* Mobil */
-        @media (max-width: 479px){
-          .px-credits{ font-size:13px }
-          .px-day-card{ padding:12px }
-          .px-day-title{ font-size:13px }
-          .px-time-grid{ grid-template-columns: 1fr; }
-          .px-time-btn{ font-size:15px; min-height:48px }
-        }
-      `}</style>
     </div>
   )
 }
