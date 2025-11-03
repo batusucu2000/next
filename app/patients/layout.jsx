@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 import TopBar from '@/components/TopBar'
 
 export default function PatientsLayout({ children }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [name, setName] = useState('')
 
-  const nav = useMemo(() => ([
+  const tabs = useMemo(() => ([
     { href: '/patients/profile',  label: 'Bilgilerimi Güncelle' },
     { href: '/patients/book',     label: 'Randevu Al' },
     { href: '/patients/upcoming', label: 'İleri Tarihli Randevularım' },
@@ -45,12 +47,30 @@ export default function PatientsLayout({ children }) {
 
   return (
     <div className="pl-shell">
-      {/* Sadece TopBar; ekstra mobil sekme YOK */}
+      {/* TopBar'ı sadece başlıkla gösteriyoruz; NAV YOK */}
       <div className="pl-sticky">
-        <TopBar title="Danışan Randevu Sistemi" nav={nav} />
+        <TopBar title="Danışan Randevu Sistemi" nav={[]} />
+        {/* KALAN TEK SEKME: Bizim kaydırmalı tabs */}
+        <nav className="pl-tabs" aria-label="Randevu sekmeleri">
+          <div className="pl-tabs-scroll">
+            {tabs.map(item => {
+              const active = pathname?.startsWith(item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`pl-tab ${active ? 'is-active' : ''}`}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </div>
+        </nav>
       </div>
 
-      {/* Tek sayfa hissi: yalnızca burası dikey scroll alır */}
+      {/* “Tek sayfa” hissi: sadece burası dikey scroll alır */}
       <div className="pl-content">
         <div className="pl-welcome">
           <div className="pl-welcome-text">
@@ -62,12 +82,37 @@ export default function PatientsLayout({ children }) {
 
       <style>{`
         .pl-shell{
-          height:100dvh; min-height:100dvh; background:#fff; color:#000;
-          font-family:Arial, sans-serif; display:flex; flex-direction:column;
+          height:100dvh; min-height:100dvh;
+          background:#fff; color:#000; font-family:Arial, sans-serif;
+          display:flex; flex-direction:column;
         }
         .pl-sticky{
-          position:sticky; top:0; z-index:50; background:#fff; border-bottom:1px solid #eee;
+          position:sticky; top:0; z-index:50; background:#fff;
+          border-bottom:1px solid #eee;
         }
+
+        /* Tek kalan sekme barı */
+        .pl-tabs { background:#fff; border-top:1px solid #eee; border-bottom:1px solid #eee; }
+        .pl-tabs-scroll{
+          display:flex; gap:18px;
+          overflow-x:auto; white-space:nowrap;
+          -webkit-overflow-scrolling:touch; overscroll-behavior-inline:contain;
+          scrollbar-width:thin; padding:10px 14px;
+          scroll-snap-type:x proximity;
+          mask-image: linear-gradient(to right,
+            rgba(0,0,0,0), rgba(0,0,0,1) 20px,
+            rgba(0,0,0,1) calc(100% - 20px), rgba(0,0,0,0));
+        }
+        .pl-tabs-scroll::-webkit-scrollbar{ height:6px; }
+        .pl-tabs-scroll::-webkit-scrollbar-thumb{ background:#d0d0d0; border-radius:999px; }
+        .pl-tab{
+          text-decoration:none; color:#111; font-weight:600;
+          padding:10px 0; border-bottom:2px solid transparent;
+          scroll-snap-align:start;
+        }
+        .pl-tab.is-active{ color:#2563eb; border-bottom-color:#2563eb; }
+
+        /* İçerik alanı scroll */
         .pl-content{
           flex:1; overflow:auto; -webkit-overflow-scrolling:touch;
           max-width:960px; width:100%; margin:0 auto; padding:16px;
@@ -80,43 +125,16 @@ export default function PatientsLayout({ children }) {
         .pl-welcome-text{ font-size:16px; }
         .pl-main{ padding:0; }
 
-        /* ---- Mobil: TopBar içindeki nav'ı yatay kaydırmalı yap ---- */
+        /* Mobil: tam genişlik ve booking sayfasındaki sol boşlukları sıfırla */
         @media (max-width: 767px){
-          /* TopBar içinde render edilen nav'ı hedefliyoruz */
-          .pl-sticky nav{
-            display:flex !important;
-            gap:18px;
-            overflow-x:auto;
-            white-space:nowrap;
-            overscroll-behavior-inline:contain;
-            -webkit-overflow-scrolling:touch;
-            padding:10px 14px;
-            scroll-snap-type:x proximity;
-            mask-image: linear-gradient(to right,
-              rgba(0,0,0,0), rgba(0,0,0,1) 20px,
-              rgba(0,0,0,1) calc(100% - 20px), rgba(0,0,0,0));
-          }
-          .pl-sticky nav::-webkit-scrollbar{ height:6px; }
-          .pl-sticky nav::-webkit-scrollbar-thumb{ background:#d0d0d0; border-radius:999px; }
-          .pl-sticky nav a{
-            border-bottom:2px solid transparent;
-            padding:10px 0;
-            font-weight:600;
-            scroll-snap-align:start;
-          }
-          /* Eğer TopBar aktif link'e class/aria veriyorsa renk vurgu burada kalır */
           .pl-content{ max-width:none; padding:12px 12px; }
           .pl-welcome{
             flex-direction:column; align-items:flex-start; gap:6px; padding:10px 12px;
           }
           .pl-welcome-text{ font-size:15px; line-height:1.35; word-break:break-word; }
-
-          /* Booking sayfandaki sol boşlukları sıfırla (varsa) */
           .pl-content .px-container{ padding-left:0 !important; }
           .pl-content .px-page{ width:100% !important; }
           .pl-content .px-days-scroll{ margin-left:0 !important; }
         }
       `}</style>
-    </div>
-  )
-}
+    </div
