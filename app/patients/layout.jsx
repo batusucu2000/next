@@ -47,10 +47,11 @@ export default function PatientsLayout({ children }) {
 
   return (
     <div className="pl-shell">
-      {/* TopBar'ı sadece başlıkla gösteriyoruz; NAV YOK */}
+      {/* STICKY ÜST BLOK: TopBar (desktop’ta nav görünsün), mobilde gizlenecek */}
       <div className="pl-sticky">
-        <TopBar title="Danışan Randevu Sistemi" nav={[]} />
-        {/* KALAN TEK SEKME: Bizim kaydırmalı tabs */}
+        <TopBar title="Danışan Randevu Sistemi" nav={tabs} />
+
+        {/* MOBİL ÖZEL sekmeler: sadece mobilde görünür, desktop’ta gizli */}
         <nav className="pl-tabs" aria-label="Randevu sekmeleri">
           <div className="pl-tabs-scroll">
             {tabs.map(item => {
@@ -70,7 +71,7 @@ export default function PatientsLayout({ children }) {
         </nav>
       </div>
 
-      {/* “Tek sayfa” hissi: sadece burası dikey scroll alır */}
+      {/* TEK SAYFA scroll alanı */}
       <div className="pl-content">
         <div className="pl-welcome">
           <div className="pl-welcome-text">
@@ -91,8 +92,8 @@ export default function PatientsLayout({ children }) {
           border-bottom:1px solid #eee;
         }
 
-        /* Tek kalan sekme barı */
-        .pl-tabs { background:#fff; border-top:1px solid #eee; border-bottom:1px solid #eee; }
+        /* MOBİL ÖZEL sekme çubuğu (bizimki) */
+        .pl-tabs { display:none; background:#fff; border-top:1px solid #eee; border-bottom:1px solid #eee; }
         .pl-tabs-scroll{
           display:flex; gap:18px;
           overflow-x:auto; white-space:nowrap;
@@ -112,7 +113,7 @@ export default function PatientsLayout({ children }) {
         }
         .pl-tab.is-active{ color:#2563eb; border-bottom-color:#2563eb; }
 
-        /* İçerik alanı scroll */
+        /* İÇERİK alanı dikey scroll alır */
         .pl-content{
           flex:1; overflow:auto; -webkit-overflow-scrolling:touch;
           max-width:960px; width:100%; margin:0 auto; padding:16px;
@@ -125,16 +126,35 @@ export default function PatientsLayout({ children }) {
         .pl-welcome-text{ font-size:16px; }
         .pl-main{ padding:0; }
 
-        /* Mobil: tam genişlik ve booking sayfasındaki sol boşlukları sıfırla */
+        /* ===== Mobil davranışlar ===== */
         @media (max-width: 767px){
+          /* TopBar içindeki nav'ı GİZLE (mobilde) */
+          .pl-sticky :where(nav){ display:none !important; }
+
+          /* Bizim mobil sekmeyi GÖSTER */
+          .pl-tabs{ display:block; }
+
+          /* İçerik tam genişlik */
           .pl-content{ max-width:none; padding:12px 12px; }
           .pl-welcome{
             flex-direction:column; align-items:flex-start; gap:6px; padding:10px 12px;
           }
           .pl-welcome-text{ font-size:15px; line-height:1.35; word-break:break-word; }
+
+          /* Booking sayfasındaki olası sol boşlukları sıfırla */
           .pl-content .px-container{ padding-left:0 !important; }
           .pl-content .px-page{ width:100% !important; }
           .pl-content .px-days-scroll{ margin-left:0 !important; }
         }
+
+        /* ===== Desktop/tablet: TopBar nav AÇIK, bizim mobil sekme KAPALI ===== */
+        @media (min-width: 768px){
+          /* TopBar nav'ı görünür; (TopBar kendi stilini uygulayacaktır) */
+          .pl-sticky :where(nav){ display:flex !important; }
+          .pl-tabs{ display:none; }
+          .pl-content{ max-width:960px; }
+        }
       `}</style>
-    </div
+    </div>
+  )
+}
