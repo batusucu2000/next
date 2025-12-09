@@ -22,8 +22,9 @@ export default function AdminUpcomingAppointments() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [cancelingId, setCancelingId] = useState(null)
 
-  // Not: sayfa mount olduğunda hesaplanan "şimdi" karşılaştırması yeterli.
+  // Mount anındaki "şimdi" karşılaştırması yeterli
   const nowIsoMin = useMemo(() => new Date().toISOString().slice(0, 16), [])
 
   useEffect(() => {
@@ -91,6 +92,49 @@ export default function AdminUpcomingAppointments() {
     }
   }
 
+  /* === İPTAL (RPC ile, 24s kuralı dahil) === */
+  const cancelBooking = async (r) => {
+    try {
+      setErr('')
+      setCancelingId(r.id)
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const adminId = user?.id || null
+
+      const s = r.slot
+      const p = r.profile || {}
+      const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || '(İsim yok)'
+
+      const ok = window.confirm(
+        `${trLongDate(s.date)} ${s.time}\n\n` +
+        `Hasta: ${name}\n\n` +
+        `Bu randevuyu İPTAL etmek istediğinize emin misiniz?\n\n` +
+        `• 24 saatten AZ kaldıysa: Kredi iadesi YOK\n` +
+        `• 24 saatten FAZLAYSA: 1 kredi iade EDİLİR`
+      )
+      if (!ok) return
+
+      // Tüm iş mantığı DB tarafında:
+      const { data, error } = await supabase.rpc('admin_cancel_booking', {
+        p_booking_id: r.id,
+        p_admin: adminId
+      })
+      if (error) throw error
+
+      const refunded = !!data?.refunded
+      alert(refunded
+        ? 'Randevu iptal edildi ve kredi iade edildi.'
+        : 'Randevu iptal edildi (kredi iadesi yok).'
+      )
+
+      await loadAll()
+    } catch (e) {
+      setErr(e.message || String(e))
+    } finally {
+      setCancelingId(null)
+    }
+  }
+
   if (loading) {
     return (
       <main className="wrap">
@@ -125,17 +169,31 @@ export default function AdminUpcomingAppointments() {
               const s = r.slot
               const p = r.profile || {}
               const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || '(İsim yok)'
+              const busy = cancelingId === r.id
               return (
                 <li key={r.id} className="card" role="article">
                   <div className="rowTop">
                     <div className="info">
                       <b className="date">{trLongDate(s.date)}</b>
-                      <div className="time">{s.time} <span className="dot"/> {s.duration_minutes} dk</div>
+                      <div className="time">{s.time} <span className="dot"/> 50 dk</div>
                       <div className="muted">Hasta: <b>{name}</b></div>
                       <div className="muted">Tel: {p.phone ?? '-'}</div>
                       <div className="mutedSmall">Oluşturulma: {new Date(r.created_at).toLocaleString('tr-TR')}</div>
                     </div>
-                    <span className="badgeBooked">Randevu Oluşturuldu</span>
+
+                    <div className="actions">
+                      <span className="badgeBooked">Randevu Oluşturuldu</span>
+                      <button
+                        className="btnCancel"
+                        disabled={busy}
+                        onClick={() => cancelBooking(r)}
+                        aria-busy={busy}
+                        aria-label="Randevuyu iptal et"
+                        title="Randevuyu iptal et"
+                      >
+                        {busy ? 'İptal ediliyor…' : 'Randevuyu İptal Et'}
+                      </button>
+                    </div>
                   </div>
                 </li>
               )
@@ -155,6 +213,9 @@ export default function AdminUpcomingAppointments() {
           --primary: #007b55;
           --ok-bg: #e7f6ec;
           --ok-br: #bce3c7;
+          --danger-bg: #fdecec;
+          --danger-br: #f5c2c7;
+          --danger-fg: #b02a37;
         }
         .wrap {
           color: var(--fg);
@@ -172,8 +233,9 @@ export default function AdminUpcomingAppointments() {
         .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px }
         .card { border: 1px solid #e5e5e5; border-radius: var(--radius); background: var(--bg); padding: 12px }
 
-        .rowTop { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 8px }
+        .rowTop { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 12px }
         .info { min-width: 0 }
+        .actions { display: grid; gap: 8px; justify-items: end }
         .date { display: block; font-size: 1rem }
         .time { font-size: .95rem; margin: 2px 0 6px }
         .dot { display: inline-block; width: 4px; height: 4px; border-radius: 999px; background: #aaa; margin: 0 6px }
@@ -182,6 +244,21 @@ export default function AdminUpcomingAppointments() {
 
         .badgeBooked { white-space: nowrap; align-self: start; border: 1px solid var(--ok-br); border-radius: 999px; padding: 6px 10px; font-size: .9rem; font-weight: 700; color: #1e7e34; background: var(--ok-bg) }
 
+        .btnCancel {
+          border: 1px solid var(--danger-br);
+          background: var(--danger-bg);
+          color: var(--danger-fg);
+          font-weight: 700;
+          font-size: .9rem;
+          padding: 8px 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: filter .15s ease, transform .02s ease;
+        }
+        .btnCancel:hover { filter: brightness(0.98); }
+        .btnCancel:active { transform: translateY(1px); }
+        .btnCancel[disabled] { opacity: .6; cursor: not-allowed; }
+
         /* ====== Mobil iyileştirmeler ====== */
         @media (max-width: 480px) {
           .wrap { padding: 12px 10px 24px }
@@ -189,6 +266,7 @@ export default function AdminUpcomingAppointments() {
           .scroller { max-height: calc(100dvh - 120px) }
           .card { padding: 12px }
           .rowTop { grid-template-columns: 1fr; }
+          .actions { justify-items: start; }
           .badgeBooked { justify-self: start; }
           .date { font-size: 1rem }
           .time { font-size: .95rem }
@@ -213,7 +291,6 @@ export default function AdminUpcomingAppointments() {
           .date { font-size: 1.05rem }
         }
 
-        /* Dokunmatik hedefleri büyütme */
         .card { -webkit-tap-highlight-color: transparent }
       `}</style>
     </main>
