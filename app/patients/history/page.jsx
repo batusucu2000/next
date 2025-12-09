@@ -161,7 +161,7 @@ export default function HistoryPage() {
                       <div className="hx-datetext">
                         <b>{trLongDate(r.slot?.date)}</b> &nbsp; {r.slot?.time}
                         <span className="hx-dot">•</span>
-                        <span className="hx-muted">{r.slot?.duration_minutes} dk</span>
+                        <span className="hx-muted">50 dk</span>
                       </div>
                       <span
                         className="hx-badge"
