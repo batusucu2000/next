@@ -15,7 +15,7 @@ export async function GET(req) {
 
     let query = supabaseAdmin
       .from('profiles')
-      .select('id, first_name, last_name, phone, role, credits, created_at')
+      .select('id, first_name, last_name, phone, role, credits, credits_expires_at, created_at')
       .in('role', ['user', 'admin'])
       .order('created_at', { ascending: false })
 
@@ -27,7 +27,10 @@ export async function GET(req) {
         `first_name.ilike.${like}`,
         `last_name.ilike.${like}`
       ]
-      if (nat10) ors.push(`phone.ilike.%${nat10}`)
+      if (nat10) {
+        ors.push(`phone.ilike.%${nat10}`)
+        ors.push(`phone.ilike.+90${nat10}%`)
+      }
       if (q.startsWith('+90')) ors.push(`phone.ilike.${q}%`)
       query = query.or(ors.join(','))
     }
@@ -47,8 +50,8 @@ export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}))
     const {
-      phone,            // +905xxxxxxxxx (E.164, zorunlu)
-      password,         // zorunlu
+      phone,
+      password,
       first_name = '',
       last_name  = '',
       credits    = 0,
@@ -59,11 +62,10 @@ export async function POST(req) {
       return NextResponse.json({ ok:false, message:'phone ve password zorunlu' }, { status:400 })
     }
 
-    // 1) AUTH: telefonla kullanıcı oluştur
     const { data: udata, error: e1 } = await supabaseAdmin.auth.admin.createUser({
       phone,
       password,
-      phone_confirm: true, // SMS doğrulaması olmadan onayla
+      phone_confirm: true,
       user_metadata: { first_name, last_name }
     })
     if (e1) {
@@ -71,7 +73,6 @@ export async function POST(req) {
     }
     const user = udata.user
 
-    // 2) profiles kaydı (FK: profiles.id = auth.users.id)
     const { error: e2 } = await supabaseAdmin
       .from('profiles')
       .upsert(
@@ -79,37 +80,33 @@ export async function POST(req) {
           id: user.id,
           first_name,
           last_name,
-          phone, // +90… formatı
+          phone,
           credits: Number(credits || 0),
           role
         },
-        { onConflict: 'id' } // id çakışırsa update
+        { onConflict: 'id' }
       )
-
     if (e2) {
-      // İsterseniz auth'ta açılan hesabı geri alabilirsiniz:
-      // await supabaseAdmin.auth.admin.deleteUser(user.id)
       return NextResponse.json({ ok:false, message:e2.message }, { status:400 })
     }
 
-    return NextResponse.json({ ok:true, user_id: user.id })
+    return NextResponse.json({ ok:true, user: { id: user.id }, user_id: user.id })
   } catch (e) {
     return NextResponse.json({ ok:false, message:e.message || 'Server error' }, { status:500 })
   }
 }
 
-/* === GÜNCELLE (telefon / parola / metadata) === */
+/* === GÜNCELLE (telefon / parola / metadata / opsiyonel profile sync) === */
 export async function PATCH(req) {
   try {
     const { id, phone, password, metadata, profile_updates } = await req.json().catch(() => ({}))
     if (!id) return NextResponse.json({ ok:false, message:'id eksik' }, { status:400 })
 
-    // ---- AUTH tarafı
     const authPayload = {}
     if (password) authPayload.password = password
     if (phone) {
-      authPayload.phone = phone           // +90…
-      authPayload.phone_confirm = true    // anında doğrulanmış say
+      authPayload.phone = phone
+      authPayload.phone_confirm = true
     }
     if (metadata && typeof metadata === 'object') {
       authPayload.user_metadata = metadata
@@ -120,9 +117,6 @@ export async function PATCH(req) {
       if (eAuth) return NextResponse.json({ ok:false, message:eAuth.message }, { status:400 })
     }
 
-    // ---- Profiles tarafı (opsiyonel senkron)
-    // Eğer front-end zaten SQL'i güncelliyorsa bu kısım şart değil, ama burada da
-    // güncelleme desteği veriyoruz: phone / first_name / last_name / credits / role
     if (profile_updates && typeof profile_updates === 'object' && Object.keys(profile_updates).length) {
       const { error: eProf } = await supabaseAdmin
         .from('profiles')
@@ -147,7 +141,6 @@ export async function DELETE(req) {
     const { error } = await supabaseAdmin.auth.admin.deleteUser(id)
     if (error) return NextResponse.json({ ok:false, message:error.message }, { status:400 })
 
-    // profiles satırı FK trigger ile otomatik siliniyorsa ekstra işleme gerek yok
     return NextResponse.json({ ok:true })
   } catch (e) {
     return NextResponse.json({ ok:false, message:e.message || 'Server error' }, { status:500 })
