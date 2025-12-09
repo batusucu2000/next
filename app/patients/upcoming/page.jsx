@@ -163,7 +163,7 @@ export default function UpcomingPage() {
               <li key={r.id} className="up-card">
                 <div className="up-rowtop">
                   <div className="up-when">
-                    <b>{trLongDate(r.slot?.date)}</b> — {r.slot?.time} ({r.slot?.duration_minutes} dk)
+                    <b>{trLongDate(r.slot?.date)}</b> — {r.slot?.time} (50 dk)
                     <div className="up-created">
                       Oluşturma: {new Date(r.created_at).toLocaleString('tr-TR')}
                     </div>
