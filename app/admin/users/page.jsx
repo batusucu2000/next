@@ -4,11 +4,23 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
-/* Telefon yardımcıları: 10 hane (ulusal), DB'ye +90 ile yaz */
+/* ===== Telefon yardımcıları ===== */
 const digits = (v='') => (v.match(/\d/g) || []).join('')
 const toNat10 = (raw='') => { const d = digits(raw); return d.length >= 10 ? d.slice(-10) : d }
 const isNat10 = (v) => /^\d{10}$/.test(v || '')
 const asE164TR = (nat10) => `+90${nat10}`
+
+/* ===== Tarih yardımcıları ===== */
+const fmtDateTR = (iso) => {
+  if (!iso) return '—'
+  try { return new Date(iso).toLocaleDateString('tr-TR') } catch { return '—' }
+}
+const daysLeft = (iso) => {
+  if (!iso) return null
+  const now = new Date()
+  const end = new Date(iso)
+  return Math.ceil((end.getTime() - now.getTime()) / (1000*60*60*24))
+}
 
 export default function AdminUsersPage() {
   const router = useRouter()
@@ -54,6 +66,7 @@ export default function AdminUsersPage() {
       const res = await fetch(url, { cache: 'no-store' })
       const json = await safeJson(res)
       if (!res.ok || !json?.ok) throw new Error(json?.message || `Liste yüklenemedi (HTTP ${res.status})`)
+      // rows: id, first_name, last_name, phone, role, credits, credits_expires_at
       setRows(json.rows || [])
     } catch (e) {
       setErr(e.message || String(e))
@@ -63,15 +76,17 @@ export default function AdminUsersPage() {
   }
 
   const startEdit = (r) => {
+    const left = daysLeft(r.credits_expires_at)
     setEditingId(r.id)
     setForm({
       id: r.id,
       first_name: r.first_name || '',
       last_name:  r.last_name  || '',
-      phone_nat10: toNat10(r.phone || ''),   // yalnız 10 hane
-      credits:    r.credits ?? 0,
-      role:       r.role || 'user',
-      password:   ''                          // opsiyonel reset
+      phone_nat10: toNat10(r.phone || ''),
+      role: r.role || 'user',
+      credits: Number(r.credits ?? 0),
+      credit_days: r.credits_expires_at ? Math.max(0, left ?? 0) : 0, // 0 = sınırsız/bitmiş kabulü
+      password: ''
     })
   }
   const cancelEdit = () => { setEditingId(null); setForm(null) }
@@ -81,26 +96,24 @@ export default function AdminUsersPage() {
       if (!isNat10(form.phone_nat10)) throw new Error('Telefon 10 hane olmalı (5xxxxxxxxx)')
       setMsg('Kaydediliyor…'); setErr('')
 
-      // 1) Profiles
+      // 1) Profile
       const { error: e1 } = await supabase
         .from('profiles')
         .update({
           first_name: form.first_name,
           last_name:  form.last_name,
-          phone:      asE164TR(form.phone_nat10), // +90 ile kaydet
-          credits:    Number(form.credits||0),
+          phone:      asE164TR(form.phone_nat10),
           role:       form.role
         })
         .eq('id', form.id)
       if (e1) throw e1
 
-      // 2) AUTH (parola/telefon değiştiyse)
+      // 2) AUTH (opsiyonel)
       const old = rows.find(r => r.id === form.id)
       const oldNat10 = toNat10(old?.phone || '')
       const payload = { id: form.id }
       if (form.password) payload.password = form.password
       if (form.phone_nat10 !== oldNat10) payload.phone = asE164TR(form.phone_nat10)
-
       if (payload.password || payload.phone) {
         const res = await fetch('/api/admin/users', {
           method: 'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload)
@@ -108,6 +121,21 @@ export default function AdminUsersPage() {
         const json = await safeJson(res)
         if (!res.ok || !json?.ok) throw new Error(json?.message || `AUTH güncellenemedi (HTTP ${res.status})`)
       }
+
+      // 3) Kredi + gün (RPC) — GÜNCELLENDİ
+      let amount = Math.max(0, Number(form.credits || 0))
+      const days = Math.max(0, Number(form.credit_days || 0))
+      // gün = 0 ise kredi anında 0 olmalı
+      if (days === 0) amount = 0
+      // sadece >0 gün süre ver; 0 ise null (süre yok/bitmiş)
+      const p_days = days > 0 ? days : null
+
+      const { error: e2 } = await supabase.rpc('admin_set_credits', {
+        p_user_id: form.id,
+        p_amount : amount,
+        p_days   : p_days
+      })
+      if (e2) throw e2
 
       setMsg('Kaydedildi ✅')
       setEditingId(null); setForm(null)
@@ -125,11 +153,9 @@ export default function AdminUsersPage() {
     try {
       setBusyDeleteId(id)
       setMsg('Siliniyor…'); setErr('')
-
       const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
       const json = await safeJson(res)
       if (!res.ok || !(json?.ok)) throw new Error(json?.message || `İstek başarısız (HTTP ${res.status})`)
-
       setMsg('Hesap silindi ✅')
       await load()
     } catch (e) {
@@ -140,8 +166,11 @@ export default function AdminUsersPage() {
     }
   }
 
-  // Yeni kullanıcı: SADECE telefon(10h) + parola zorunlu
-  const [newRow, setNewRow] = useState({ password:'', first_name:'', last_name:'', phone_nat10:'', credits:0, role:'user' })
+  // Yeni kullanıcı
+  const [newRow, setNewRow] = useState({
+    password:'', first_name:'', last_name:'', phone_nat10:'',
+    credits:0, credit_days:0, role:'user'
+  })
 
   const createUser = async () => {
     try {
@@ -149,19 +178,36 @@ export default function AdminUsersPage() {
       if (!newRow.password) throw new Error('Parola zorunlu')
 
       setMsg('Oluşturuluyor…'); setErr('')
+      // 1) auth + temel profil
       const res = await fetch('/api/admin/users', {
         method: 'POST', headers: { 'Content-Type':'application/json' },
         body: JSON.stringify({
           phone: asE164TR(newRow.phone_nat10), password: newRow.password,
           first_name: newRow.first_name, last_name: newRow.last_name,
-          credits: newRow.credits, role: newRow.role
+          credits: 0, role: newRow.role
         })
       })
       const json = await safeJson(res)
       if (!res.ok || !json?.ok) throw new Error(json?.message || `Oluşturulamadı (HTTP ${res.status})`)
 
+      const newId = json.user?.id || json.id || null
+      if (!newId) throw new Error('Yeni kullanıcı ID’si alınamadı')
+
+      // 2) Kredi & gün RPC — GÜNCELLENDİ
+      let amount = Math.max(0, Number(newRow.credits || 0))
+      const days = Math.max(0, Number(newRow.credit_days || 0))
+      if (days === 0) amount = 0
+      const p_days = days > 0 ? days : null
+
+      const { error: e2 } = await supabase.rpc('admin_set_credits', {
+        p_user_id: newId,
+        p_amount : amount,
+        p_days   : p_days
+      })
+      if (e2) throw e2
+
       setMsg('Kullanıcı oluşturuldu ✅')
-      setNewRow({ first_name:'', last_name:'', phone_nat10:'', password:'', credits:0, role:'user' })
+      setNewRow({ first_name:'', last_name:'', phone_nat10:'', password:'', credits:0, credit_days:0, role:'user' })
       await load()
     } catch (e) {
       setErr(e.message || String(e))
@@ -187,7 +233,7 @@ export default function AdminUsersPage() {
         <button onClick={load} className="btn">Ara</button>
       </div>
 
-      {/* Masaüstü: tablo, Mobil: kartlar */}
+      {/* Masaüstü tablo */}
       <div className="tableScroll">
         <table className="table" role="table">
           <thead>
@@ -198,6 +244,8 @@ export default function AdminUsersPage() {
               <th>Parola</th>
               <th>Rol</th>
               <th>Kredi</th>
+              <th>Kredi Günleri</th>
+              <th>Bitiş</th>
               <th>İşlem</th>
             </tr>
           </thead>
@@ -221,16 +269,16 @@ export default function AdminUsersPage() {
                 </div>
                 {!isNat10(newRow.phone_nat10) && newRow.phone_nat10 && <div className="hint">10 hane olmalı</div>}
               </td>
-              <td>
-                <input className="input" type="password" value={newRow.password} onChange={e=>setNewRow({...newRow,password:e.target.value})} placeholder="Parola"/>
-              </td>
+              <td><input className="input" type="password" value={newRow.password} onChange={e=>setNewRow({...newRow,password:e.target.value})} placeholder="Parola"/></td>
               <td>
                 <select className="input" value={newRow.role} onChange={e=>setNewRow({...newRow,role:e.target.value})}>
                   <option value="user">user</option>
                   <option value="admin">admin</option>
                 </select>
               </td>
-              <td><input className="input" type="number" value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/></td>
+              <td><input className="input" type="number" min={0} value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/></td>
+              <td><input className="input" type="number" min={0} value={newRow.credit_days} onChange={e=>setNewRow({...newRow,credit_days:Number(e.target.value||0)})} placeholder="örn 30"/></td>
+              <td>—</td>
               <td>
                 <button
                   className="btn primary"
@@ -245,6 +293,9 @@ export default function AdminUsersPage() {
             {/* Mevcut kayıtlar */}
             {rows.map(r => {
               const isEdit = editingId === r.id
+              const exp = r.credits_expires_at
+              const left = daysLeft(exp)
+
               return (
                 <tr key={r.id}>
                   <td>{isEdit ? <input className="input" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/> : (r.first_name||'')}</td>
@@ -274,7 +325,20 @@ export default function AdminUsersPage() {
                         </select>
                       : r.role}
                   </td>
-                  <td>{isEdit ? <input className="input" type="number" value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/> : (r.credits ?? 0)}</td>
+
+                  {/* Kredi */}
+                  <td>{isEdit
+                    ? <input className="input" type="number" min={0} value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/>
+                    : (r.credits ?? 0)}</td>
+
+                  {/* Kredi Günleri: kalan gün */}
+                  <td>{isEdit
+                    ? <input className="input" type="number" min={0} value={form.credit_days} onChange={e=>setForm({...form,credit_days:Number(e.target.value||0)})} placeholder="örn 30"/>
+                    : (exp ? Math.max(0, left ?? 0) : 0)}</td>
+
+                  {/* Bitiş: yalnız tarih */}
+                  <td>{fmtDateTR(exp)}</td>
+
                   <td className="actions">
                     {isEdit ? (
                       <>
@@ -298,7 +362,7 @@ export default function AdminUsersPage() {
               )
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={7} className="empty">Kayıt yok</td></tr>
+              <tr><td colSpan={9} className="empty">Kayıt yok</td></tr>
             )}
           </tbody>
         </table>
@@ -324,17 +388,24 @@ export default function AdminUsersPage() {
               <option value="user">user</option>
               <option value="admin">admin</option>
             </select>
-            <input className="input" type="number" placeholder="Kredi" value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/>
+            <input className="input" type="number" placeholder="Başlangıç kredisi" min={0} value={newRow.credits} onChange={e=>setNewRow({...newRow,credits:Number(e.target.value||0)})}/>
           </div>
+          <input className="input" type="number" placeholder="Kredi günleri (örn 30)" min={0} value={newRow.credit_days} onChange={e=>setNewRow({...newRow,credit_days:Number(e.target.value||0)})}/>
           <button className="btn primary w100" disabled={!isNat10(newRow.phone_nat10) || !newRow.password} onClick={createUser}>+ Ekle</button>
         </li>
 
         {/* Kayıt kartları */}
         {rows.map(r => {
           const isEdit = editingId === r.id
+          const exp = r.credits_expires_at
+          const left = daysLeft(exp)
+
           return (
             <li key={r.id} className="card">
-              <div className="cardTitle">{r.first_name || '-'} {r.last_name || ''} <span className="badge">{r.role}</span></div>
+              <div className="cardTitle">
+                {r.first_name || '-'} {r.last_name || ''}
+              </div>
+
               {isEdit ? (
                 <>
                   <div className="grid2">
@@ -347,28 +418,24 @@ export default function AdminUsersPage() {
                   </div>
                   {!isNat10(form.phone_nat10) && form.phone_nat10 && <div className="hint">Telefon 10 hane olmalı</div>}
                   <input className="input" type="password" placeholder="(opsiyonel yeni parola)" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
+
                   <div className="grid2">
                     <select className="input" value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
                       <option value="user">user</option>
                       <option value="admin">admin</option>
                     </select>
-                    <input className="input" type="number" value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/>
+                    <input className="input" type="number" min={0} value={form.credits} onChange={e=>setForm({...form,credits:Number(e.target.value||0)})}/>
                   </div>
-                  <div className="actionsRow">
-                    <button className="btn primary" disabled={!isNat10(form.phone_nat10)} onClick={saveEdit}>Kaydet</button>
-                    <button className="btn" onClick={cancelEdit}>İptal</button>
-                  </div>
+                  <input className="input" type="number" min={0} value={form.credit_days} onChange={e=>setForm({...form,credit_days:Number(e.target.value||0)})} placeholder="Kredi günleri"/>
+
+                  <div className="meta"><b>Bitiş:</b> {fmtDateTR(rows.find(x=>x.id===form.id)?.credits_expires_at)}</div>
                 </>
               ) : (
                 <>
                   <div className="meta"><b>Tel:</b> {r.phone || '-'}</div>
                   <div className="meta"><b>Kredi:</b> {r.credits ?? 0}</div>
-                  <div className="actionsRow">
-                    <button className="btn" onClick={()=>startEdit(r)}>Düzenle</button>
-                    <button className="btn danger" onClick={()=>handleDelete(r.id)} disabled={busyDeleteId === r.id}>
-                      {busyDeleteId === r.id ? 'Siliniyor…' : 'Sil'}
-                    </button>
-                  </div>
+                  <div className="meta"><b>Kredi Günleri (kalan):</b> {exp ? Math.max(0, left ?? 0) : 0}</div>
+                  <div className="meta"><b>Bitiş:</b> {fmtDateTR(exp)}</div>
                 </>
               )}
             </li>
@@ -391,9 +458,8 @@ export default function AdminUsersPage() {
         .btn.xs { padding: 6px 10px; font-size: 13px }
         .btn.w100 { width: 100% }
 
-        /* Tablo */
         .tableScroll { max-height: 70vh; overflow: auto; border: 1px solid #eee; border-radius: 10px; display: none }
-        .table { width: 100%; border-collapse: collapse; min-width: 720px }
+        .table { width: 100%; border-collapse: collapse; min-width: 980px }
         thead tr { background: #fafafa; position: sticky; top: 0; z-index: 1 }
         th, td { padding: 10px; border-bottom: 1px solid #f4f4f4; text-align: left; font-size: 14px }
         th { border-bottom: 1px solid #eee; font-weight: 700; font-size: 14px }
@@ -404,28 +470,23 @@ export default function AdminUsersPage() {
         .hint { font-size: 12px; color: crimson; margin-top: 4px }
         .empty { text-align: center; color: #666; padding: 12px }
 
-        /* Kartlar (Mobil) */
         .cards { display: grid; gap: 12px; list-style: none; padding: 0; margin: 12px 0 0 }
         .card { border: 1px solid #e5e5e5; border-radius: var(--radius); background: #fafafa; padding: 12px }
         .cardTitle { font-weight: 700; margin: 0 0 8px; display: flex; align-items: center; gap: 8px }
-        .badge { font-size: 12px; border: 1px solid #cfeee1; color: #1e7e34; background: #e7f6ec; border-radius: 999px; padding: 2px 8px }
         .meta { font-size: 14px; color: var(--muted); margin: 4px 0 }
         .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
         .actionsRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px }
 
-        /* Ekran kırılımları */
         @media (min-width: 768px) {
           .tableScroll { display: block }
           .cards { display: none }
           .wrap { padding: 0 16px 24px }
         }
-
-        /* Küçük ekran iyileştirmeleri */
         @media (max-width: 480px) {
           .searchInput { width: 100%; font-size: 16px }
           .btn { font-size: 16px }
-          .input { font-size: 16px } /* iOS zoom engelle */
-          .grid2 { grid-template-columns: 1fr } /* İki sütunu tek sütuna düşür */
+          .input { font-size: 16px }
+          .grid2 { grid-template-columns: 1fr }
           .actionsRow { grid-template-columns: 1fr 1fr }
         }
       `}</style>
