@@ -82,6 +82,14 @@ export default function AdminCalendarPage() {
   const [slotsByDate, setSlotsByDate] = useState({})
   const [reservedDetails, setReservedDetails] = useState({})
 
+  // Modal durumları
+  const [showNoteModal, setShowNoteModal] = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState(null)
+  const [noteText, setNoteText] = useState('')
+
+  // Notları localStorage'dan yükle
+  const [slotNotes, setSlotNotes] = useState({})
+
   /* ==== Client'ta timezone güvenli başlangıç hesapla ==== */
   useEffect(() => {
     const now = new Date()
@@ -93,6 +101,12 @@ export default function AdminCalendarPage() {
     utcMidnight.setUTCDate(utcMidnight.getUTCDate() - mondayOffset)
     setCurrentWeekStart(utcMidnight)
     setToday(fmtDate(new Date()))
+
+    // localStorage'dan notları yükle
+    const savedNotes = localStorage.getItem('adminSlotNotes')
+    if (savedNotes) {
+      setSlotNotes(JSON.parse(savedNotes))
+    }
   }, [])
 
   /* ==== Görünecek hafta (tek hafta) ==== */
@@ -198,33 +212,134 @@ export default function AdminCalendarPage() {
     return slot ? reservedDetails[slot.id] : null
   }
 
+  const getSlotId = (date, hhmm) => {
+    const list = slotsByDate[date] || []
+    const slot = list.find(s => s.time === hhmm)
+    return slot ? slot.id : `${date}T${hhmm}`
+  }
+
+  const getSlotNote = (date, hhmm) => {
+    const slotId = getSlotId(date, hhmm)
+    return slotNotes[slotId] || null
+  }
+
+  const saveSlotNote = (slotId, note) => {
+    const updatedNotes = {
+      ...slotNotes,
+      [slotId]: note.trim()
+    }
+    setSlotNotes(updatedNotes)
+    localStorage.setItem('adminSlotNotes', JSON.stringify(updatedNotes))
+  }
+
+  const removeSlotNote = (slotId) => {
+    const updatedNotes = { ...slotNotes }
+    delete updatedNotes[slotId]
+    setSlotNotes(updatedNotes)
+    localStorage.setItem('adminSlotNotes', JSON.stringify(updatedNotes))
+  }
+
+  /* ==== Not Modal'ını Aç ==== */
+  const openNoteModal = (date, time) => {
+    setSelectedSlot({ date, time })
+    const slotId = getSlotId(date, time)
+    setNoteText(slotNotes[slotId] || '')
+    setShowNoteModal(true)
+  }
+
+  /* ==== Not Modal'ını Kapat ==== */
+  const closeNoteModal = () => {
+    setShowNoteModal(false)
+    setSelectedSlot(null)
+    setNoteText('')
+  }
+
+  /* ==== Notu Kaydet ==== */
+  const saveNote = () => {
+    if (!selectedSlot) return
+    const slotId = getSlotId(selectedSlot.date, selectedSlot.time)
+    
+    if (noteText.trim()) {
+      saveSlotNote(slotId, noteText)
+    } else {
+      removeSlotNote(slotId)
+    }
+    
+    closeNoteModal()
+  }
+
+  /* ==== Slot Kapatma/Açma ==== */
   const toggleSlotClosed = async (date, time) => {
     try {
       setErr('')
       const cur = statusOf(date, time)
       const list = slotsByDate[date] || []
       const slot = list.find(s => s.time === time)
-      const id = `${date}T${time}`
+      const slotId = getSlotId(date, time)
+      const hasNote = getSlotNote(date, time)
 
       const willClose = cur !== 'closed'
-      const titleTxt = `${trDate(date)} ${time} — ${nextHour(time)}`
-      let confirmText = willClose
-        ? `${titleTxt}\nBu saati KAPATMAK istediğinize emin misiniz?`
-        : `${titleTxt}\nBu saati AÇMAK istediğinize emin misiniz?`
+      
+      // Önce not modal'ını aç
+      openNoteModal(date, time)
+      
+      // Not modal'ı kapanınca işleme devam et
+      // Not: Burada modal'ın kapanmasını bekleyeceğiz, modal içinde "İptal Et" butonu olacak
+      
+    } catch (e) {
+      setErr(e.message || String(e))
+    }
+  }
 
-      if (cur === 'reserved' && willClose) {
-        const patientName = getPatientName(date, time)
-        confirmText += `\n\nDİKKAT: Bu saatte ${patientName || 'bir hastanın'} randevusu var.`
-      }
-      const ok = window.confirm(confirmText)
-      if (!ok) return
+  /* ==== Not Modal'dan İptal İşlemi ==== */
+  const confirmSlotAction = async (withNote = false) => {
+    if (!selectedSlot) return
+    
+    const { date, time } = selectedSlot
+    const cur = statusOf(date, time)
+    const list = slotsByDate[date] || []
+    const slot = list.find(s => s.time === time)
+    const slotId = getSlotId(date, time)
+    const willClose = cur !== 'closed'
+    const patientName = getPatientName(date, time)
 
+    // Notu kaydet (eğer varsa)
+    if (withNote && noteText.trim()) {
+      saveSlotNote(slotId, noteText.trim())
+    }
+
+    const titleTxt = `${trDate(date)} ${time} — ${nextHour(time)}`
+    let confirmText = willClose
+      ? `${titleTxt}\nBu saati KAPATMAK istediğinize emin misiniz?`
+      : `${titleTxt}\nBu saati AÇMAK istediğinize emin misiniz?`
+
+    if (cur === 'reserved' && willClose) {
+      confirmText += `\n\nDİKKAT: Bu saatte ${patientName || 'bir hastanın'} randevusu var.`
+    }
+
+    if (withNote && noteText.trim()) {
+      confirmText += `\n\nNotunuz: "${noteText.trim()}"`
+    }
+
+    const ok = window.confirm(confirmText)
+    if (!ok) {
+      closeNoteModal()
+      return
+    }
+
+    try {
       setMsg('Kaydediliyor…')
 
       if (!slot) {
         const { error } = await supabase
           .from('slots')
-          .insert({ id, date, time, duration_minutes: 60, status: willClose ? 'closed' : 'free' })
+          .insert({ 
+            id: slotId, 
+            date, 
+            time, 
+            duration_minutes: 60, 
+            status: willClose ? 'closed' : 'free' 
+          })
         if (error) throw error
       } else {
         const { error } = await supabase
@@ -239,6 +354,8 @@ export default function AdminCalendarPage() {
       setTimeout(() => setMsg(''), 1200)
     } catch (e) {
       setErr(e.message || String(e))
+    } finally {
+      closeNoteModal()
     }
   }
 
@@ -267,7 +384,7 @@ export default function AdminCalendarPage() {
     }
   }
 
-  /* ==== Loading (inline style, ikinci <style jsx> YOK) ==== */
+  /* ==== Loading ==== */
   if (loading || !currentWeekStart) {
     return (
       <main
@@ -297,6 +414,7 @@ export default function AdminCalendarPage() {
           <Legend color="#2e7d32" label="Müsait" />
           <Legend color="#c62828" label="Rezerve" />
           <Legend color="#9e9e9e" label="Kapalı" />
+          <Legend color="#ffb300" label="Not Var" />
         </div>
 
         {msg && <div className="ok">{msg}</div>}
@@ -342,27 +460,39 @@ export default function AdminCalendarPage() {
                       const isAvailable = availableHours.includes(hour)
                       const status = isAvailable ? statusOf(date, hour) : 'closed'
                       const patientName = getPatientName(date, hour)
+                      const slotNote = getSlotNote(date, hour)
+                      const hasNote = !!slotNote
 
                       return (
                         <div
                           key={hour}
-                          className={`calendar-slot slot-${status} ${isAvailable ? 'clickable' : ''}`}
+                          className={`calendar-slot slot-${status} ${hasNote ? 'has-note' : ''} ${isAvailable ? 'clickable' : ''}`}
                           onClick={() => isAvailable && toggleSlotClosed(date, hour)}
                           title={
                             isAvailable
                               ? (status === 'reserved'
-                                  ? `${trDate(date)} ${hour} — ${nextHour(hour)}\nHasta: ${patientName}`
-                                  : `${trDate(date)} ${hour} — ${nextHour(hour)}`)
+                                  ? `${trDate(date)} ${hour} — ${nextHour(hour)}\nHasta: ${patientName}${hasNote ? `\n\nNot: ${slotNote}` : ''}`
+                                  : `${trDate(date)} ${hour} — ${nextHour(hour)}${hasNote ? `\n\nNot: ${slotNote}` : ''}`)
                               : 'Kapalı'
                           }
                         >
                           {isAvailable && status === 'free' && (
-                            <div className="slot-content"><span className="slot-time">{hour}</span></div>
+                            <div className="slot-content">
+                              <span className="slot-time">{hour}</span>
+                              {hasNote && <span className="slot-note-icon" title={slotNote}>📝</span>}
+                            </div>
                           )}
                           {isAvailable && status === 'reserved' && (
                             <div className="slot-content reserved">
                               <span className="slot-time">{hour}</span>
                               <span className="patient-name">{patientName}</span>
+                              {hasNote && <span className="slot-note-icon" title={slotNote}>📝</span>}
+                            </div>
+                          )}
+                          {isAvailable && status === 'closed' && (
+                            <div className="slot-content closed">
+                              <span className="slot-time">{hour}</span>
+                              {hasNote && <span className="slot-note-icon" title={slotNote}>📝</span>}
                             </div>
                           )}
                         </div>
@@ -376,9 +506,83 @@ export default function AdminCalendarPage() {
         </section>
       </main>
 
-      {/* === TEK styled-jsx BLOĞU === */}
+      {/* Not Modal */}
+      {showNoteModal && selectedSlot && (
+        <div className="modal-overlay" onClick={closeNoteModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Not Ekle</h3>
+              <button className="modal-close" onClick={closeNoteModal} aria-label="Kapat">
+                &times;
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="slot-info">
+                <p><strong>Tarih:</strong> {trDate(selectedSlot.date)}</p>
+                <p><strong>Saat:</strong> {selectedSlot.time} - {nextHour(selectedSlot.time)}</p>
+                {getPatientName(selectedSlot.date, selectedSlot.time) && (
+                  <p className="warning">
+                    <strong>Dikkat:</strong> Bu saatte {getPatientName(selectedSlot.date, selectedSlot.time)} isimli hastanın randevusu var!
+                  </p>
+                )}
+              </div>
+              
+              <div className="note-section">
+                <label htmlFor="noteInput">
+                  <strong>Not (Örn: yaşlı hasta, özel durum, vb.):</strong>
+                </label>
+                <textarea
+                  id="noteInput"
+                  className="note-input"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Bu saat için notunuzu yazın..."
+                  rows={4}
+                  maxLength={200}
+                  autoFocus
+                />
+                <div className="note-counter">
+                  {noteText.length}/200 karakter
+                </div>
+              </div>
+              
+              <div className="info-box">
+                <strong>Bilgi:</strong> Bu not sadece sizin görebileceğiniz şekilde bu saatte görünecektir.
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button
+                className="btn-cancel"
+                onClick={() => {
+                  if (window.confirm('Not eklemeden devam etmek istiyor musunuz?')) {
+                    confirmSlotAction(false)
+                  }
+                }}
+              >
+                Not Eklemeyip Devam Et
+              </button>
+              <button
+                className="btn-save"
+                onClick={() => confirmSlotAction(true)}
+              >
+                Notu Kaydet ve Devam Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
-        :root { --green:#2e7d32; --red:#c62828; --muted:#9e9e9e; --border:#dadce0; --hover:#f8f9fa; }
+        :root { 
+          --green:#2e7d32; 
+          --red:#c62828; 
+          --muted:#9e9e9e; 
+          --border:#dadce0; 
+          --hover:#f8f9fa; 
+          --note-yellow:#ffb300;
+        }
         .page { background:#fff; color:#000; min-height:100dvh; display:flex; flex-direction:column; font-family:system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
         .hdr { position:sticky; top:0; z-index:20; border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; justify-content:space-between; background:#fff; flex-wrap:wrap; gap:12px; }
         .brand { font-size:18px; font-weight:700; color:#007b55; }
@@ -419,10 +623,203 @@ export default function AdminCalendarPage() {
         .slot-closed { background:#f8f9fa; }
         .slot-closed:hover { background:#e9ecef; }
         .clickable { cursor:pointer; }
+        .has-note { border-left:3px solid var(--note-yellow) !important; }
 
-        .slot-content { padding:2px 4px; font-size:11px; color:var(--green); font-weight:500; height:100%; display:flex; flex-direction:column; justify-content:center; }
+        .slot-content { padding:2px 4px; font-size:11px; color:var(--green); font-weight:500; height:100%; display:flex; flex-direction:column; justify-content:center; position:relative; }
         .slot-content.reserved { color:var(--red); }
+        .slot-content.closed { color:var(--muted); }
         .patient-name { font-size:10px; font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .slot-note-icon { position:absolute; top:2px; right:2px; font-size:10px; cursor:help; }
+
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+          animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .modal-content {
+          background: white;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 500px;
+          max-height: 90vh;
+          overflow-y: auto;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px 24px 16px;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h3 {
+          margin: 0;
+          font-size: 1.25rem;
+          color: #333;
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 28px;
+          color: #666;
+          cursor: pointer;
+          line-height: 1;
+          padding: 0;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+          background: #f5f5f5;
+          color: #333;
+        }
+
+        .modal-body {
+          padding: 20px 24px;
+        }
+
+        .slot-info {
+          background: #f8f9fa;
+          padding: 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+        }
+
+        .slot-info p {
+          margin: 8px 0;
+          color: #555;
+        }
+
+        .slot-info .warning {
+          color: #d32f2f;
+          background: #ffebee;
+          padding: 8px;
+          border-radius: 4px;
+          border-left: 3px solid #d32f2f;
+        }
+
+        .note-section {
+          margin-bottom: 20px;
+        }
+
+        .note-section label {
+          display: block;
+          margin-bottom: 8px;
+          color: #333;
+        }
+
+        .note-input {
+          width: 100%;
+          padding: 12px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          font-family: inherit;
+          font-size: 0.95rem;
+          resize: vertical;
+          transition: border 0.2s;
+        }
+
+        .note-input:focus {
+          outline: none;
+          border-color: #007b55;
+          box-shadow: 0 0 0 2px rgba(0, 123, 85, 0.1);
+        }
+
+        .note-counter {
+          text-align: right;
+          font-size: 0.85rem;
+          color: #666;
+          margin-top: 4px;
+        }
+
+        .info-box {
+          background: #e3f2fd;
+          border: 1px solid #2196f3;
+          border-radius: 8px;
+          padding: 12px;
+          color: #0d47a1;
+          font-size: 0.9rem;
+        }
+
+        .modal-footer {
+          display: flex;
+          gap: 12px;
+          padding: 16px 24px;
+          border-top: 1px solid var(--border);
+          background: #f8f9fa;
+          border-bottom-left-radius: 16px;
+          border-bottom-right-radius: 16px;
+        }
+
+        .btn-cancel {
+          flex: 1;
+          padding: 12px;
+          border: 1px solid #ccc;
+          background: white;
+          color: #333;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+          background: #f5f5f5;
+          border-color: #999;
+        }
+
+        .btn-save {
+          flex: 1;
+          padding: 12px;
+          border: 1px solid #007b55;
+          background: #007b55;
+          color: white;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .btn-save:hover {
+          background: #006747;
+          border-color: #006747;
+        }
 
         @media (max-width: 768px) {
           .hdr { flex-direction:column; align-items:flex-start; }
@@ -433,6 +830,8 @@ export default function AdminCalendarPage() {
           .day-header { height:70px; padding:4px; }
           .day-number { font-size:16px; }
           .calendar-slot { height:50px; }
+          .slot-note-icon { font-size:9px; top:1px; right:1px; }
+          .modal-footer { flex-direction: column; }
         }
         @media (max-width: 480px) {
           .nav-btn { padding:6px 8px; font-size:12px; }
