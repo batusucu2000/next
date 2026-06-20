@@ -24,7 +24,7 @@ export default function Home() {
       <header className={`px-topbar ${scrolled ? "scrolled" : ""}`}>
         <div className="px-container px-topbar-inner">
           <div className="px-brand">
-            <span className="px-logo">Nil Sezgin</span>
+            <span className="px-logo">Nil SEZGIN</span>
             <span className="px-sub">Fizyoterapi Kliniği</span>
           </div>
 
@@ -126,7 +126,7 @@ export default function Home() {
         <div className="px-container">
           <h2>Hakkımda</h2>
           <div className="px-about">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: "48px", alignItems: "start" }}>
+            <div className="px-about-grid">
               <div>
                 <p>
                   Merhaba, ben <strong>Fizyoterapist Nil Sezgin</strong>. 2021 yılında Karabük Üniversitesi Fizyoterapi ve
@@ -158,7 +158,7 @@ export default function Home() {
               </div>
 
               {/* Sağ görsel: Next/Image ile */}
-              <div className="px-image-hover" style={{ position: "relative", height: 400, borderRadius: "var(--radius)", overflow: "hidden", boxShadow: "var(--shadow)" }}>
+              <div className="px-image-hover px-about-photo">
                 <Image
                   src="/images/therapy-2.jpg"
                   alt="Fizyoterapi seansı"

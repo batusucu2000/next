@@ -107,7 +107,7 @@ export default function LoginPage() {
       <header className="px-auth-header">
         <div className="px-auth-header-inner">
           <div className="px-brand">
-            <span className="px-logo">Nil Sezgin</span>
+            <span className="px-logo">Nil SEZGIN</span>
             <span className="px-sub">Fizyoterapi Kliniği</span>
           </div>
         </div>

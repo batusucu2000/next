@@ -150,6 +150,12 @@ body {
 .px-about p { margin-bottom: 20px; line-height: 1.7; color: var(--text); }
 .px-about strong { color: var(--text); font-weight: 700; }
 
+.px-about-grid { display: grid; grid-template-columns: 1fr 320px; gap: 48px; align-items: start; }
+.px-about-photo {
+  position: relative; width: 100%; aspect-ratio: 5344 / 9504;
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+}
+
 .px-bullets { margin: 24px 0; padding-left: 24px; list-style: none; }
 .px-bullets li {
   position: relative; margin-bottom: 12px; padding-left: 28px; color: var(--muted); line-height: 1.6;
@@ -182,6 +188,8 @@ body {
   .px-grid { grid-template-columns: 1fr; }
   .px-section { padding: 80px 0; }
   .px-about { padding: 32px 24px; }
+  .px-about-grid { grid-template-columns: 1fr; gap: 32px; }
+  .px-about-photo { max-width: 300px; margin: 0 auto; }
 }
 @media (max-width: 480px) {
   .px-container { padding: 0 16px; }
