@@ -24,7 +24,7 @@ export default function Home() {
       <header className={`px-topbar ${scrolled ? "scrolled" : ""}`}>
         <div className="px-container px-topbar-inner">
           <div className="px-brand">
-            <span className="px-logo">Nil Sucu</span>
+            <span className="px-logo">Nil Sezgin</span>
             <span className="px-sub">Fizyoterapi Kliniği</span>
           </div>
 
@@ -57,7 +57,7 @@ export default function Home() {
           <div className="px-hero-content">
             <h1>Bilimsel ve kişiye özel fizyoterapi.</h1>
             <p>
-              Nil Sucu ile ağrısız, güçlü ve dengeli bir yaşama adım atın. Online randevu,
+              Nil Sezgin ile ağrısız, güçlü ve dengeli bir yaşama adım atın. Online randevu,
               uzman yaklaşım ve modern ekipmanlarla hizmetinizdeyiz.
             </p>
             <div className="px-cta">
@@ -129,7 +129,7 @@ export default function Home() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: "48px", alignItems: "start" }}>
               <div>
                 <p>
-                  Merhaba, ben <strong>Fizyoterapist Nil Sucu</strong>. 2021 yılında Karabük Üniversitesi Fizyoterapi ve
+                  Merhaba, ben <strong>Fizyoterapist Nil Sezgin</strong>. 2021 yılında Karabük Üniversitesi Fizyoterapi ve
                   Rehabilitasyon Bölümü'nden mezun oldum. Mezuniyetten bu yana, insan vücudunun hareket kapasitesini,
                   dengesini ve fonksiyonel gücünü korumaya odaklanan bir anlayışla fizyoterapi alanında aktif olarak
                   hizmet veriyorum.
@@ -212,7 +212,7 @@ export default function Home() {
 
       <footer className="px-footer">
         <div className="px-container">
-          <p>© {YEAR} Nil Sucu Fizyoterapi Kliniği • Tüm hakları saklıdır.</p>
+          <p>© {YEAR} Nil Sezgin Fizyoterapi Kliniği • Tüm hakları saklıdır.</p>
         </div>
       </footer>
     </main>

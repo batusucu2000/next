@@ -104,7 +104,7 @@ Yarın için randevunuz bulunmaktadır.
 Randevu zamanı: ${readableTime}
 
 Herhangi bir değişiklik için lütfen bizimle iletişime geçin.
-- Nil Sucu`
+- Nil Sezgin`
 
       if (dry) {
         info.preview = true

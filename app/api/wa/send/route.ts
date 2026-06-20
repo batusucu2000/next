@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     // 2) WhatsApp mesajını gönder
     const { twilioClient, WA_FROM } = await lazy.twilio()
-    const body = `Doğrulama kodun: *${code}*\n\nSüre: 5 dk.\n\n- Nil Sucu`
+    const body = `Doğrulama kodun: *${code}*\n\nSüre: 5 dk.\n\n- Nil Sezgin`
 
     try {
       await twilioClient.messages.create({
