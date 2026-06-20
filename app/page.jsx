@@ -24,7 +24,7 @@ export default function Home() {
       <header className={`px-topbar ${scrolled ? "scrolled" : ""}`}>
         <div className="px-container px-topbar-inner">
           <div className="px-brand">
-            <span className="px-logo">Nil SEZGIN</span>
+            <span className="px-logo">Nil SEZGİN</span>
             <span className="px-sub">Fizyoterapi Kliniği</span>
           </div>
 
